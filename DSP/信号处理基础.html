@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>信号处理基础 — 采样 · FFT · 窗函数</title>
+<style>
+:root{
+  --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --border:#2d3748;
+  --text:#e2e8f0; --dim:#94a3b8; --accent:#38bdf8; --accent2:#f472b6;
+  --accent3:#a3e635; --warn:#fbbf24; --grid:#22304a;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;line-height:1.7;padding:0 0 60px}
+header{background:linear-gradient(135deg,#0f2027,#16213e);border-bottom:1px solid var(--border);padding:28px 24px}
+header h1{font-size:26px;color:var(--accent)}
+header p{color:var(--dim);margin-top:6px;font-size:14px}
+.back{display:inline-block;margin-bottom:10px;color:var(--dim);text-decoration:none;font-size:13px}
+.back:hover{color:var(--accent)}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+h2{font-size:20px;color:var(--accent);margin:38px 0 14px;padding-left:12px;border-left:4px solid var(--accent)}
+h3{font-size:16px;color:var(--accent2);margin:0 0 8px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px 18px;font-size:14px}
+.card b{color:var(--accent3)}
+.formula{display:inline-block;background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:2px 10px;margin:4px 0;font-family:Consolas,monospace;color:var(--warn);font-size:14px}
+.sim{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px;margin-top:16px}
+.sim .desc{color:var(--dim);font-size:13px;margin-bottom:12px}
+.controls{display:flex;flex-wrap:wrap;gap:16px 26px;margin-bottom:14px}
+.ctrl{display:flex;flex-direction:column;font-size:13px;color:var(--dim);min-width:180px}
+.ctrl label{display:flex;justify-content:space-between;margin-bottom:4px}
+.ctrl label span{color:var(--accent);font-family:Consolas,monospace}
+input[type=range]{width:200px;accent-color:var(--accent)}
+select{background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:13px}
+button{background:var(--accent);color:#06202e;border:none;border-radius:6px;padding:6px 16px;font-size:13px;cursor:pointer;font-weight:bold}
+button.ghost{background:var(--panel2);color:var(--text);border:1px solid var(--border)}
+canvas{display:block;width:100%;background:#0a0e14;border:1px solid var(--border);border-radius:8px}
+.canvas-pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:760px){.canvas-pair{grid-template-columns:1fr}}
+.readout{font-family:Consolas,monospace;font-size:14px;color:var(--accent3);background:var(--panel2);border-radius:6px;padding:8px 14px;margin-top:10px;display:inline-block}
+.tag{display:inline-block;background:var(--panel2);color:var(--warn);border-radius:4px;padding:1px 8px;font-size:12px;margin-right:6px}
+.legend{font-size:12px;color:var(--dim);margin-top:6px}
+.legend i{display:inline-block;width:18px;height:3px;vertical-align:middle;margin:0 6px 2px 12px;border-radius:2px}
+footer{text-align:center;color:#475569;font-size:12px;margin-top:50px}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="back" href="../index.html">← 返回工具首页</a>
+    <h1>信号处理基础（DSP）</h1>
+    <p>采样定理 · 混叠 · 量化 · FFT 频谱分析 · 窗函数与频谱泄漏 —— 全部仿真在浏览器本地运行，可离线使用</p>
+  </div>
+</header>
+<div class="wrap">
+
+<h2>一、信号、噪声与傅里叶思想</h2>
+<div class="cards">
+  <div class="card">
+    <h3>1. 信号的三要素</h3>
+    最基本的信号是正弦波，由三个参数完全确定：<br>
+    <span class="formula">x(t) = A·sin(2π·f·t + φ)</span><br>
+    <b>A</b> 幅度（强弱）、<b>f</b> 频率（快慢）、<b>φ</b> 相位（起点）。任何复杂信号都可以拆解成一堆这样的正弦波。
+  </div>
+  <div class="card">
+    <h3>2. 时域与频域：同一信号的两种看法</h3>
+    示波器看<b>时域</b>：电压随时间怎么变；频谱仪看<b>频域</b>：信号由哪些频率组成、各多强。两者携带完全相同的信息，傅里叶变换就是这两个视角之间的"翻译器"。
+  </div>
+  <div class="card">
+    <h3>3. 傅里叶的核心思想</h3>
+    <b>任何周期信号 = 基波 + 一系列谐波正弦的叠加</b>（傅里叶级数）：<br>
+    <span class="formula">方波 = (4/π)·[sin(ωt) + sin(3ωt)/3 + sin(5ωt)/5 + …]</span><br>
+    非周期信号则用连续的频率成分叠加（傅里叶积分）。下面仿真①可亲手验证。
+  </div>
+  <div class="card">
+    <h3>4. 噪声：无处不在的干扰</h3>
+    <b>白噪声</b>：所有频率功率相同（像白光）；<b>高斯噪声</b>：幅度服从正态分布。两者常同时成立（AWGN）。电阻热噪声功率：<br>
+    <span class="formula">N = k·T·B（−174 dBm/Hz @ 290K）</span><br>
+    带宽越宽，收进来的噪声越多。
+  </div>
+  <div class="card">
+    <h3>5. 信噪比 SNR 与噪声系数</h3>
+    <span class="formula">SNR(dB) = 10·lg(P<sub>信号</sub>/P<sub>噪声</sub>)</span><br>
+    SNR 决定能否可靠检测/解调。器件会恶化 SNR，恶化量叫<b>噪声系数 NF</b>：理想器件 NF=0dB，优秀 LNA 约 1~2dB。
+  </div>
+  <div class="card">
+    <h3>6. 如何读懂一幅 FFT 频谱</h3>
+    N 点实信号做 FFT 得 N 个复数 X[k]，第 k 条谱线对应频率 <span class="formula">f<sub>k</sub> = k·f<sub>s</sub>/N</span>
+    <b>|X[k]|</b> 是该频率的幅度，<b>∠X[k]</b> 是相位。实信号的频谱左右对称（共轭对称），所以只看前半边。信号频率不在谱线上时能量"泄漏"到邻近谱线（栅栏效应）。
+  </div>
+</div>
+
+<h2>二、仿真 ①：傅里叶级数合成 —— 信号是"拼"出来的</h2>
+<div class="sim">
+  <div class="desc">用有限个正弦谐波叠加逼近方波/锯齿波。从 1 个谐波开始逐个增加，看波形如何一步步"长"成目标形状——FFT 做的事情正是反过来：<b>把给定波形拆成这些谐波的幅度和相位</b>。方波在跳变处始终有约 9% 的过冲（吉布斯现象），这就是"有限带宽"的代价。</div>
+  <div class="controls">
+    <div class="ctrl"><label>目标波形</label>
+      <select id="fs_wave">
+        <option value="sq" selected>方波</option>
+        <option value="saw">锯齿波</option>
+        <option value="tri">三角波</option>
+      </select></div>
+    <div class="ctrl"><label>谐波个数 K <span id="v_K">5</span></label>
+      <input type="range" id="fs_K" min="1" max="50" value="5"></div>
+  </div>
+  <div class="canvas-pair">
+    <div><canvas id="cv_synth" height="240"></canvas>
+      <div class="legend"><i style="background:var(--accent)"></i>K 次谐波合成结果 <i style="background:#475569"></i>理想波形 <i style="background:var(--accent2)"></i>前 3 次谐波分量</div></div>
+    <div><canvas id="cv_harm" height="240"></canvas>
+      <div class="legend"><i style="background:var(--accent3)"></i>各次谐波的幅度（即傅里叶级数系数，FFT 频谱的"前身"）</div></div>
+  </div>
+  <div class="readout" id="synth_out"></div>
+</div>
+
+<h2>三、采样、量化与频谱分析理论</h2>
+<div class="cards">
+  <div class="card">
+    <h3>1. 采样定理（奈奎斯特）</h3>
+    要从采样值中无失真恢复原信号，采样率必须大于信号最高频率的 2 倍：<br>
+    <span class="formula">f<sub>s</sub> &gt; 2 · f<sub>max</sub></span><br>
+    这个临界值 <b>f<sub>s</sub>/2</b> 称为<b>奈奎斯特频率</b>。实际工程一般留余量，取 2.5~5 倍。
+  </div>
+  <div class="card">
+    <h3>2. 混叠（Aliasing）</h3>
+    采样率不足时，高频信号会"伪装"成低频信号，且无法事后区分。混叠后的表观频率：<br>
+    <span class="formula">f<sub>alias</sub> = |f − n·f<sub>s</sub>|（折回到 0 ~ f<sub>s</sub>/2 内）</span><br>
+    对策：采样前加<b>抗混叠低通滤波器</b>。
+  </div>
+  <div class="card">
+    <h3>3. 量化与 ADC 位数</h3>
+    ADC 把连续幅度离散化为 2<sup>N</sup> 个等级，引入量化噪声。理想 N 位 ADC 的信噪比：<br>
+    <span class="formula">SNR ≈ 6.02·N + 1.76 (dB)</span><br>
+    12 位 ≈ 74 dB，16 位 ≈ 98 dB。
+  </div>
+  <div class="card">
+    <h3>4. DFT 与 FFT</h3>
+    离散傅里叶变换把 N 点时域信号变成 N 点频域谱：<br>
+    <span class="formula">X[k] = Σ x[n]·e<sup>−j2πkn/N</sup></span><br>
+    直接算要 N² 次乘法，<b>FFT</b> 用分治法降到 N·log₂N：1024 点从约 100 万次降到约 1 万次。
+  </div>
+  <div class="card">
+    <h3>5. 频率分辨率</h3>
+    N 点采样、采样率 f<sub>s</sub> 时，频谱相邻两点间隔：<br>
+    <span class="formula">Δf = f<sub>s</sub> / N</span><br>
+    想看清两个靠近的频率，就要采<b>更长的时间</b>（而不是更高的采样率）。
+  </div>
+  <div class="card">
+    <h3>6. 频谱泄漏与窗函数</h3>
+    信号频率不在 FFT 谱线上（非整周期截断）时，能量会"漏"到邻近谱线。加窗（汉宁、汉明等）压窄泄漏，代价是主瓣变宽：<br>
+    <span class="formula">矩形窗：分辨率高、泄漏大；汉宁窗：折中</span>
+  </div>
+</div>
+
+<h2>四、仿真 ②：采样与混叠</h2>
+<div class="sim">
+  <div class="desc">拖动"信号频率"，当它超过采样率的一半（奈奎斯特频率）时，观察采样点重构出的<b style="color:var(--accent2)">虚假低频</b>。红色谱线是混叠后的表观频率。</div>
+  <div class="controls">
+    <div class="ctrl"><label>信号频率 f <span id="v_fsig">30 Hz</span></label>
+      <input type="range" id="fsig" min="1" max="200" value="30"></div>
+    <div class="ctrl"><label>采样率 f<sub>s</sub> <span id="v_fs">100 Hz</span></label>
+      <input type="range" id="fs" min="20" max="400" value="100"></div>
+    <div class="ctrl"><label>奈奎斯特频率 <span id="v_nyq" style="color:var(--warn)">50 Hz</span></label>
+      <input type="range" disabled style="visibility:hidden"></div>
+  </div>
+  <div class="canvas-pair">
+    <div><canvas id="cv_time" height="240"></canvas>
+      <div class="legend"><i style="background:#475569"></i>原始信号 <i style="background:var(--accent)"></i>采样点 <i style="background:var(--accent2)"></i>采样点看到的表观波形</div></div>
+    <div><canvas id="cv_spec" height="240"></canvas>
+      <div class="legend"><i style="background:#475569"></i>真实频率 <i style="background:var(--accent2)"></i>测量到的频率</div></div>
+  </div>
+  <div class="readout" id="alias_out"></div>
+</div>
+
+<h2>五、仿真 ③：FFT 频谱仪</h2>
+<div class="sim">
+  <div class="desc">叠加最多 3 个正弦分量并加噪声，做 1024 点 FFT。把频率调到非整数 Hz（如 10.5）产生<b>非整周期截断</b>，再切换窗函数，对比频谱泄漏的变化。</div>
+  <div class="controls">
+    <div class="ctrl"><label>分量1 频率 <span id="v_f1">10 Hz</span></label><input type="range" id="f1" min="0.5" max="120" step="0.5" value="10"></div>
+    <div class="ctrl"><label>分量1 幅度 <span id="v_a1">1.00</span></label><input type="range" id="a1" min="0" max="1" step="0.05" value="1"></div>
+    <div class="ctrl"><label>分量2 频率 <span id="v_f2">25.5 Hz</span></label><input type="range" id="f2" min="0.5" max="120" step="0.5" value="25.5"></div>
+    <div class="ctrl"><label>分量2 幅度 <span id="v_a2">0.60</span></label><input type="range" id="a2" min="0" max="1" step="0.05" value="0.6"></div>
+    <div class="ctrl"><label>分量3 频率 <span id="v_f3">60 Hz</span></label><input type="range" id="f3" min="0.5" max="120" step="0.5" value="60"></div>
+    <div class="ctrl"><label>分量3 幅度 <span id="v_a3">0.00</span></label><input type="range" id="a3" min="0" max="1" step="0.05" value="0"></div>
+    <div class="ctrl"><label>噪声幅度 <span id="v_noise">0.10</span></label><input type="range" id="noise" min="0" max="1" step="0.05" value="0.1"></div>
+    <div class="ctrl"><label>窗函数</label>
+      <select id="win">
+        <option value="rect">矩形窗（不加窗）</option>
+        <option value="hann" selected>汉宁窗 Hann</option>
+        <option value="hamm">汉明窗 Hamming</option>
+        <option value="black">布莱克曼窗 Blackman</option>
+      </select></div>
+  </div>
+  <div class="canvas-pair">
+    <div><canvas id="cv_td" height="220"></canvas><div class="legend"><i style="background:var(--accent)"></i>时域信号（采样率 256 Hz，1024 点）</div></div>
+    <div><canvas id="cv_fft" height="220"></canvas><div class="legend"><i style="background:var(--accent3)"></i>幅度谱 Δf = 0.25 Hz（对数 dB 刻度）</div></div>
+  </div>
+</div>
+
+<h2>六、仿真 ④：四种窗函数对比</h2>
+<div class="sim">
+  <div class="desc">左边是窗的时域形状，右边是窗自身的频谱。<b>主瓣越窄频率分辨越好，旁瓣越低泄漏越少</b>——两者不可兼得，这就是窗函数选择的本质权衡。</div>
+  <div class="canvas-pair">
+    <div><canvas id="cv_wt" height="240"></canvas><div class="legend">时域形状</div></div>
+    <div><canvas id="cv_wf" height="240"></canvas><div class="legend">频谱（归一化 dB，看主瓣宽度与旁瓣高度）</div></div>
+  </div>
+  <div class="legend">
+    <i style="background:#94a3b8"></i>矩形 <i style="background:var(--accent)"></i>汉宁 <i style="background:var(--accent3)"></i>汉明 <i style="background:var(--accent2)"></i>布莱克曼
+  </div>
+  <div class="readout">旁瓣电平：矩形 −13 dB ｜ 汉宁 −31 dB ｜ 汉明 −41 dB ｜ 布莱克曼 −58 dB</div>
+</div>
+
+</div>
+<footer>rftools · 信号处理基础 · 纯本地单文件，无外部依赖</footer>
+
+<script>
+"use strict";
+/* ============ 公共：FFT（radix-2，原地计算） ============ */
+function fft(re, im){
+  const n = re.length;
+  for(let i=1,j=0;i<n;i++){
+    let bit=n>>1;
+    for(;j&bit;bit>>=1) j^=bit;
+    j^=bit;
+    if(i<j){ let t=re[i];re[i]=re[j];re[j]=t; t=im[i];im[i]=im[j];im[j]=t; }
+  }
+  for(let len=2;len<=n;len<<=1){
+    const ang=-2*Math.PI/len, wr=Math.cos(ang), wi=Math.sin(ang);
+    for(let i=0;i<n;i+=len){
+      let cwr=1, cwi=0;
+      for(let j=0;j<len/2;j++){
+        const ur=re[i+j], ui=im[i+j];
+        const vr=re[i+j+len/2]*cwr - im[i+j+len/2]*cwi;
+        const vi=re[i+j+len/2]*cwi + im[i+j+len/2]*cwr;
+        re[i+j]=ur+vr; im[i+j]=ui+vi;
+        re[i+j+len/2]=ur-vr; im[i+j+len/2]=ui-vi;
+        const t=cwr*wr-cwi*wi; cwi=cwr*wi+cwi*wr; cwr=t;
+      }
+    }
+  }
+}
+/* ============ 公共：窗函数 ============ */
+function windowVal(type, n, N){
+  const x = n/(N-1);
+  switch(type){
+    case "hann": return 0.5*(1-Math.cos(2*Math.PI*x));
+    case "hamm": return 0.54-0.46*Math.cos(2*Math.PI*x);
+    case "black": return 0.42-0.5*Math.cos(2*Math.PI*x)+0.08*Math.cos(4*Math.PI*x);
+    default: return 1;
+  }
+}
+/* ============ 公共：Canvas 绘图 ============ */
+function setupCanvas(id){
+  const cv = document.getElementById(id);
+  const dpr = window.devicePixelRatio||1;
+  const w = cv.clientWidth, h = cv.height;
+  cv.width = w*dpr; cv.height = h*dpr;
+  const ctx = cv.getContext("2d");
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  return {ctx, w, h};
+}
+function drawGrid(ctx,w,h,xLabel,yLabel){
+  ctx.clearRect(0,0,w,h);
+  ctx.strokeStyle="#22304a"; ctx.lineWidth=1; ctx.beginPath();
+  for(let i=1;i<10;i++){ ctx.moveTo(w*i/10,0); ctx.lineTo(w*i/10,h); }
+  for(let i=1;i<5;i++){ ctx.moveTo(0,h*i/5); ctx.lineTo(w,h*i/5); }
+  ctx.stroke();
+  ctx.fillStyle="#64748b"; ctx.font="11px Consolas";
+  if(xLabel) ctx.fillText(xLabel, w-ctx.measureText(xLabel).width-6, h-6);
+  if(yLabel) ctx.fillText(yLabel, 6, 14);
+}
+function plotLine(ctx, data, x0,x1, y0,y1, w,h, color, lw){
+  ctx.strokeStyle=color; ctx.lineWidth=lw||1.5; ctx.beginPath();
+  let started=false;
+  for(let i=0;i<data.length;i++){
+    const px = (i/(data.length-1))*(x1-x0)+x0;
+    const X = (px-x0)/(x1-x0)*w;
+    const Y = h - (data[i]-y0)/(y1-y0)*h;
+    if(Y<-50||Y>h+50){ started=false; continue; }
+    if(!started){ ctx.moveTo(X,Y); started=true; } else ctx.lineTo(X,Y);
+  }
+  ctx.stroke();
+}
+/* 通用坐标轴曲线：xs/ys 数组，自变量线性映射 */
+function plotXY(ctx, xs, ys, xa,xb, ya,yb, w,h, color, lw){
+  ctx.strokeStyle=color; ctx.lineWidth=lw||1.5; ctx.beginPath();
+  let started=false;
+  for(let i=0;i<xs.length;i++){
+    const X=(xs[i]-xa)/(xb-xa)*w, Y=h-(ys[i]-ya)/(yb-ya)*h;
+    if(X<0||X>w){ started=false; continue; }
+    if(!started){ ctx.moveTo(X,Y); started=true; } else ctx.lineTo(X,Y);
+  }
+  ctx.stroke();
+}
+
+/* ============ 仿真①：傅里叶级数合成 ============ */
+const $ = id => document.getElementById(id);
+// 第 k 次谐波的幅度系数（归一化到基波=1）；返回 0 表示该次谐波不存在
+function harmAmp(type, k){
+  if(type==="sq")  return (k%2===1) ? 1/k : 0;          // 方波：奇次 1/k
+  if(type==="saw") return 1/k;                           // 锯齿：全体 1/k
+  if(type==="tri") return (k%2===1) ? 1/(k*k) : 0;       // 三角：奇次 1/k²
+  return 0;
+}
+function idealWave(type, x){ // x ∈ [0,2) 一个周期（与级数 sin(πkx) 的基波周期一致）
+  if(type==="sq")  return x<1 ? 1 : -1;
+  if(type==="saw") return x-1;
+  if(type==="tri") return (2/Math.PI)*Math.asin(Math.sin(Math.PI*x)); // 与正弦级数同相位的三角波
+  return 0;
+}
+function updateSynth(){
+  const type=$("fs_wave").value, K=+$("fs_K").value;
+  $("v_K").textContent=K;
+  const M=600, xs=[], syn=[], ideal=[];
+  const h1=[], h2=[], h3=[]; // 前三次谐波（归一化）
+  let maxErr=0;
+  for(let i=0;i<M;i++){
+    const x=i/(M-1)*2; // 两个周期
+    xs.push(x);
+    let s=0;
+    for(let k=1;k<=K;k++){
+      const a=harmAmp(type,k);
+      if(a===0) continue;
+      const ph = (type==="tri" && (k%4===3)) ? -1 : 1; // 三角波符号交替
+      const sg = (type==="saw") ? -1 : 1;              // 锯齿波全负号
+      s += ph*sg*a*Math.sin(2*Math.PI*k*x/2);          // 基波周期=2
+    }
+    // 傅里叶级数标准系数：方波×4/π，锯齿×2/π，三角×8/π²
+    const vv = type==="tri" ? s*8/(Math.PI*Math.PI) : type==="saw" ? s*2/Math.PI : s*4/Math.PI;
+    syn.push(vv);
+    const idl=idealWave(type, x%2);
+    ideal.push(idl);
+    const e=Math.abs(vv-idl); if(e>maxErr&&i>10&&i<M-10) maxErr=e;
+    // 前三次有效谐波
+    const comps=[[1,h1],[3,h2],[5,h3]];
+    for(const [k,arr] of comps){
+      const a=harmAmp(type,k);
+      const ph = (type==="tri" && (k%4===3)) ? -1 : 1;
+      const sg = (type==="saw") ? -1 : 1;
+      const sc = type==="tri" ? 8/(Math.PI*Math.PI) : type==="saw" ? 2/Math.PI : 4/Math.PI;
+      arr.push(a>0 ? ph*sg*a*Math.sin(2*Math.PI*k*x/2)*sc : NaN);
+    }
+  }
+  const cv=setupCanvas("cv_synth");
+  drawGrid(cv.ctx,cv.w,cv.h,"时间（2 个周期）","幅度");
+  plotXY(cv.ctx,xs,ideal,0,2,-1.6,1.6,cv.w,cv.h,"#475569",1.5);
+  cv.ctx.setLineDash([3,3]);
+  plotXY(cv.ctx,xs,h1,0,2,-1.6,1.6,cv.w,cv.h,"rgba(244,114,182,.7)",1);
+  plotXY(cv.ctx,xs,h2,0,2,-1.6,1.6,cv.w,cv.h,"rgba(244,114,182,.45)",1);
+  plotXY(cv.ctx,xs,h3,0,2,-1.6,1.6,cv.w,cv.h,"rgba(244,114,182,.25)",1);
+  cv.ctx.setLineDash([]);
+  plotXY(cv.ctx,xs,syn,0,2,-1.6,1.6,cv.w,cv.h,"#38bdf8",2);
+
+  // 谐波幅度条形图
+  const sp=setupCanvas("cv_harm");
+  drawGrid(sp.ctx,sp.w,sp.h,"谐波次数 k","幅度（相对基波）");
+  const Kmax=Math.max(K,10);
+  for(let k=1;k<=Kmax;k++){
+    const a=harmAmp(type,k);
+    const X=(k-0.5)/Kmax*sp.w, bw=sp.w/Kmax*0.6;
+    const Y=sp.h-a/1.1*sp.h;
+    sp.ctx.fillStyle = k<=K ? "#a3e635" : "#2d3748";
+    sp.ctx.fillRect(X-bw/2, Y, bw, sp.h-Y);
+  }
+  sp.ctx.fillStyle="#94a3b8"; sp.ctx.font="11px Consolas";
+  sp.ctx.fillText("绿色=已包含的前 "+K+" 次，灰色=尚未包含", 10, 26);
+
+  const name={sq:"方波",saw:"锯齿波",tri:"三角波"}[type];
+  $("synth_out").textContent =
+    name+" · 已叠加 K="+K+" 次谐波 · 当前与理想波形最大偏差 ≈ "+maxErr.toFixed(2)+
+    (type==="sq"&&K>=10?"（跳变处 ~9% 过冲永不消失——吉布斯现象）":"")+
+    " ｜ 谐波越多越接近理想波形，但理论上需要无穷多个";
+}
+$("fs_wave").addEventListener("change",updateSynth);
+$("fs_K").addEventListener("input",updateSynth);
+
+/* ============ 仿真②：采样与混叠 ============ */
+function updateSampling(){
+  const f = +$("fsig").value, fs = +$("fs").value;
+  $("v_fsig").textContent = f+" Hz";
+  $("v_fs").textContent = fs+" Hz";
+  const nyq = fs/2;
+  $("v_nyq").textContent = nyq+" Hz";
+  // 混叠后的表观频率
+  let fa = f % fs; if(fa > fs/2) fa = fs - fa;
+  const aliased = f > nyq;
+
+  // 时域：画 0.1s
+  const T=0.1, M=800, t=[], orig=[], recon=[];
+  for(let i=0;i<M;i++){ const ti=T*i/(M-1); t.push(ti); orig.push(Math.sin(2*Math.PI*f*ti)); recon.push(Math.sin(2*Math.PI*fa*ti)); }
+  const st=setupCanvas("cv_time");
+  drawGrid(st.ctx,st.w,st.h,"时间 (0 ~ 0.1 s)","幅度");
+  plotXY(st.ctx,t,orig,0,T,-1.3,1.3,st.w,st.h,"#475569",1.5);
+  plotXY(st.ctx,t,recon,0,T,-1.3,1.3,st.w,st.h,"#f472b6",1.5);
+  // 采样点
+  st.ctx.fillStyle="#38bdf8";
+  const nSamp = Math.floor(T*fs);
+  for(let k=0;k<=nSamp;k++){
+    const ti=k/fs, X=ti/T*st.w, Y=st.h-(Math.sin(2*Math.PI*f*ti)+1.3)/2.6*st.h;
+    st.ctx.beginPath(); st.ctx.arc(X,Y,3,0,7); st.ctx.fill();
+    st.ctx.strokeStyle="rgba(56,189,248,.3)"; st.ctx.beginPath(); st.ctx.moveTo(X,st.h); st.ctx.lineTo(X,Y); st.ctx.stroke();
+  }
+  // 频域示意：0~fs/2 范围
+  const sp=setupCanvas("cv_spec");
+  drawGrid(sp.ctx,sp.w,sp.h,"频率 (0 ~ f_s/2 = "+nyq+" Hz)","谱线");
+  const fmax = nyq;
+  // 真实频率（若超出范围，用灰色画在边界并标记）
+  if(f <= fmax){
+    const X=f/fmax*sp.w;
+    sp.ctx.strokeStyle="#94a3b8"; sp.ctx.lineWidth=3;
+    sp.ctx.beginPath(); sp.ctx.moveTo(X,sp.h); sp.ctx.lineTo(X,sp.h*0.15); sp.ctx.stroke();
+  } else {
+    sp.ctx.fillStyle="#64748b";
+    sp.ctx.fillText("真实频率 "+f+" Hz 超出可表示范围 →", 10, 30);
+  }
+  const Xa=fa/fmax*sp.w;
+  sp.ctx.strokeStyle="#f472b6"; sp.ctx.lineWidth=3;
+  sp.ctx.beginPath(); sp.ctx.moveTo(Xa,sp.h); sp.ctx.lineTo(Xa,sp.h*0.15); sp.ctx.stroke();
+  sp.ctx.fillStyle="#f472b6"; sp.ctx.font="12px Consolas";
+  sp.ctx.fillText(fa.toFixed(1)+" Hz", Math.min(Xa+5,sp.w-60), sp.h*0.15+10);
+
+  $("alias_out").innerHTML = aliased
+    ? "⚠ 发生混叠！真实 "+f+" Hz &gt; 奈奎斯特 "+nyq+" Hz，采样后无法与 <b style='color:#f472b6'>"+fa.toFixed(1)+" Hz</b> 区分"
+    : "✓ 采样正常："+f+" Hz ≤ 奈奎斯特 "+nyq+" Hz，信号可被完整恢复";
+}
+["fsig","fs"].forEach(id=>$(id).addEventListener("input",updateSampling));
+
+/* ============ 仿真②：FFT 频谱仪 ============ */
+const NFFT=1024, FS2=256;
+function updateAnalyzer(){
+  const pars=[["f1","a1"],["f2","a2"],["f3","a3"]].map(([f,a])=>{
+    $("v_"+f).textContent=(+$ (f).value).toFixed(1)+" Hz";
+    $("v_"+a).textContent=(+$(a).value).toFixed(2);
+    return {f:+$(f).value, a:+$(a).value};
+  });
+  const noise=+$("noise").value; $("v_noise").textContent=noise.toFixed(2);
+  const win=$("win").value;
+
+  const re=new Float64Array(NFFT), im=new Float64Array(NFFT);
+  let wsum=0;
+  const wvals=new Float64Array(NFFT);
+  for(let n=0;n<NFFT;n++){ wvals[n]=windowVal(win,n,NFFT); wsum+=wvals[n]; }
+  for(let n=0;n<NFFT;n++){
+    const t=n/FS2;
+    let v=0;
+    for(const p of pars) v+=p.a*Math.sin(2*Math.PI*p.f*t);
+    v+=noise*(Math.random()*2-1);
+    re[n]=v*wvals[n];
+  }
+  // 时域图（只画前 256 点便于观察）
+  const td=setupCanvas("cv_td");
+  drawGrid(td.ctx,td.w,td.h,"时间 (前 1 s)","幅度");
+  const tx=[], ty=[];
+  for(let n=0;n<256;n++){ tx.push(n/FS2); ty.push(re[n]/wsum*2*1.4); }
+  plotXY(td.ctx,tx,ty,0,1,-1.6,1.6,td.w,td.h,"#38bdf8",1.3);
+
+  fft(re,im);
+  // 幅度谱 dB（单边，归一化）
+  const half=NFFT/2, mag=new Float64Array(half);
+  let peak=0, pk=0;
+  for(let k=1;k<half;k++){
+    const m=Math.sqrt(re[k]*re[k]+im[k]*im[k])/wsum*2;
+    mag[k]=20*Math.log10(m+1e-9);
+    if(mag[k]>peak && k>2){ peak=mag[k]; pk=k; }
+  }
+  const sp=setupCanvas("cv_fft");
+  drawGrid(sp.ctx,sp.w,sp.h,"频率 Hz (0 ~ 128)","dB");
+  const fx=[], fy=[];
+  for(let k=1;k<half;k++){ fx.push(k*FS2/NFFT); fy.push(mag[k]); }
+  plotXY(sp.ctx,fx,fy,0,128,-80,10,sp.w,sp.h,"#a3e635",1.2);
+  sp.ctx.fillStyle="#a3e635"; sp.ctx.font="11px Consolas";
+  sp.ctx.fillText("峰值 ≈ "+(pk*FS2/NFFT).toFixed(2)+" Hz", 8, 30);
+}
+["f1","a1","f2","a2","f3","a3","noise"].forEach(id=>$(id).addEventListener("input",updateAnalyzer));
+$("win").addEventListener("change",updateAnalyzer);
+
+/* ============ 仿真③：窗函数对比 ============ */
+function drawWindows(){
+  const types=[["rect","#94a3b8"],["hann","#38bdf8"],["hamm","#a3e635"],["black","#f472b6"]];
+  const NW=256;
+  const wt=setupCanvas("cv_wt");
+  drawGrid(wt.ctx,wt.w,wt.h,"样本序号 n","w[n]");
+  const wf=setupCanvas("cv_wf");
+  drawGrid(wf.ctx,wf.w,wf.h,"归一化频率（谱线间隔数）","dB");
+  for(const [type,color] of types){
+    const xs=[], ys=[];
+    for(let n=0;n<NW;n++){ xs.push(n); ys.push(windowVal(type,n,NW)); }
+    plotXY(wt.ctx,xs,ys,0,NW,-0.05,1.1,wt.w,wt.h,color,1.5);
+    // 窗的频谱：补零到 2048 做 FFT 细化
+    const L=2048, re=new Float64Array(L), im=new Float64Array(L);
+    let wsum=0;
+    for(let n=0;n<NW;n++){ re[n]=windowVal(type,n,NW); wsum+=re[n]; }
+    fft(re,im);
+    const fx=[], fy=[];
+    for(let k=0;k<L/2 && k*(NW)/L<40;k++){
+      const m=Math.sqrt(re[k]*re[k]+im[k]*im[k])/wsum;
+      fx.push(k*NW/L); fy.push(20*Math.log10(m+1e-7));
+    }
+    plotXY(wf.ctx,fx,fy,0,40,-90,3,wf.w,wf.h,color,1.5);
+  }
+}
+drawWindows();
+
+updateSynth();
+updateSampling();
+updateAnalyzer();
+window.addEventListener("resize",()=>{ updateSynth(); updateSampling(); updateAnalyzer(); drawWindows(); });
+</script>
+</body>
+</html>

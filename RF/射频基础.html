@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>射频基础 — dB · 滤波器 · 阻抗匹配</title>
+<style>
+:root{
+  --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --border:#2d3748;
+  --text:#e2e8f0; --dim:#94a3b8; --accent:#38bdf8; --accent2:#f472b6;
+  --accent3:#a3e635; --warn:#fbbf24; --grid:#22304a;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;line-height:1.7;padding:0 0 60px}
+header{background:linear-gradient(135deg,#1a1a2e,#16213e);border-bottom:1px solid var(--border);padding:28px 24px}
+header h1{font-size:26px;color:var(--accent)}
+header p{color:var(--dim);margin-top:6px;font-size:14px}
+.back{display:inline-block;margin-bottom:10px;color:var(--dim);text-decoration:none;font-size:13px}
+.back:hover{color:var(--accent)}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+h2{font-size:20px;color:var(--accent);margin:38px 0 14px;padding-left:12px;border-left:4px solid var(--accent)}
+h3{font-size:16px;color:var(--accent2);margin:0 0 8px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px 18px;font-size:14px}
+.card b{color:var(--accent3)}
+.formula{display:inline-block;background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:2px 10px;margin:4px 0;font-family:Consolas,monospace;color:var(--warn);font-size:14px}
+.sim{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px;margin-top:16px}
+.sim .desc{color:var(--dim);font-size:13px;margin-bottom:12px}
+.controls{display:flex;flex-wrap:wrap;gap:16px 26px;margin-bottom:14px}
+.ctrl{display:flex;flex-direction:column;font-size:13px;color:var(--dim);min-width:170px}
+.ctrl label{display:flex;justify-content:space-between;margin-bottom:4px}
+.ctrl label span{color:var(--accent);font-family:Consolas,monospace}
+input[type=range]{width:190px;accent-color:var(--accent)}
+input[type=number]{background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:14px;width:120px;font-family:Consolas,monospace}
+select{background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:13px}
+canvas{display:block;width:100%;background:#0a0e14;border:1px solid var(--border);border-radius:8px}
+.canvas-pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:760px){.canvas-pair{grid-template-columns:1fr}}
+.readout{font-family:Consolas,monospace;font-size:14px;color:var(--accent3);background:var(--panel2);border-radius:6px;padding:8px 14px;margin-top:10px;display:inline-block}
+.conv-table{width:100%;border-collapse:collapse;font-family:Consolas,monospace;font-size:14px;margin-top:10px}
+.conv-table td{border:1px solid var(--border);padding:7px 12px}
+.conv-table td:first-child{color:var(--dim);white-space:nowrap;background:var(--panel2)}
+.legend{font-size:12px;color:var(--dim);margin-top:6px}
+.legend i{display:inline-block;width:18px;height:3px;vertical-align:middle;margin:0 6px 2px 12px;border-radius:2px}
+.arch{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:10px 0;font-size:13px}
+.arch .blk{background:var(--panel2);border:1px solid var(--accent);border-radius:8px;padding:8px 12px;text-align:center}
+.arch .blk small{display:block;color:var(--dim);font-size:11px}
+.arch .arr{color:var(--accent);font-weight:bold}
+.arch .fb{width:100%;color:var(--dim);font-size:12px;text-align:center}
+footer{text-align:center;color:#475569;font-size:12px;margin-top:50px}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="back" href="../index.html">← 返回工具首页</a>
+    <h1>射频基础（RF）</h1>
+    <p>dB 与功率换算 · LC 滤波器频响 · 阻抗匹配与反射 —— 全部仿真在浏览器本地运行，可离线使用</p>
+  </div>
+</header>
+<div class="wrap">
+
+<h2>一、电磁频谱与射频链路基础</h2>
+<div class="cards">
+  <div class="card">
+    <h3>1. 电磁频谱划分与传播特性</h3>
+    <b>HF</b>(3~30MHz) 电离层反射，短波电台通全球；<b>VHF/UHF</b>(30M~3G) 视距传播，FM 广播、手机、WiFi；<b>微波</b>(3G~300G) 直线传播、雨衰明显，雷达与卫星。频率越高 → 带宽越大、天线越小，但绕射和穿透能力越差。
+  </div>
+  <div class="card">
+    <h3>2. 为什么高频电路"不一样"</h3>
+    低频时导线只是连线；当线长接近波长的 1/10，电压电流沿线呈<b>波动分布</b>，必须按传输线处理。高频电流还只走导体表面（<b>趋肤效应</b>）：<br>
+    <span class="formula">δ = √(2ρ/ωμ)，铜在 1GHz 时 δ≈2µm</span><br>
+    这就是射频走线要控阻抗、镀银、尽量短的原因。
+  </div>
+  <div class="card">
+    <h3>3. 传输线与特征阻抗</h3>
+    均匀传输线用分布电感电容描述，特征阻抗：<br>
+    <span class="formula">Z₀ = √(L′/C′)</span><br>
+    与线长<b>无关</b>。50Ω 是功率容量与损耗折中的行业标准（75Ω 用于视频）。微带线、同轴线、波导都是它的物理实现。
+  </div>
+  <div class="card">
+    <h3>4. 接收灵敏度</h3>
+    接收机能听到的最弱信号：<br>
+    <span class="formula">P<sub>min</sub> = −174 dBm/Hz + 10·lgB + NF + SNR<sub>req</sub></span><br>
+    例：B=10kHz、NF=5dB、需 SNR=10dB → −124 dBm。带宽越窄越"灵敏"，这就是对讲机窄带的原因之一。
+  </div>
+  <div class="card">
+    <h3>5. 非线性：P1dB 与 IP3</h3>
+    放大器输入过大时增益被压缩：<b>P1dB</b> = 增益掉 1dB 的输出功率点。双音信号还会产生三阶交调（2f₁−f₂ 等，落在带内滤不掉），用 <b>IP3</b> 衡量。仿真③可直观看到。
+  </div>
+  <div class="card">
+    <h3>6. 相位噪声</h3>
+    理想本振是一根谱线，实际本振频率随机抖动，谱线两侧有"裙边"——相位噪声，单位 dBc/Hz@偏移。它限制接收机抗强邻道干扰能力，也直接决定雷达的速度测量精度。
+  </div>
+</div>
+
+<h2>二、关键概念与公式</h2>
+<div class="cards">
+  <div class="card">
+    <h3>1. 为什么用 dB？</h3>
+    射频链路中信号功率动辄相差 10¹⁰ 倍（发射 kW、接收 pW），用对数刻度 dB 把乘法变加法：<br>
+    <span class="formula">功率：P(dBm) = 10·lg(P/1mW)</span><br>
+    <span class="formula">电压：20·lg(V₂/V₁)；功率：10·lg(P₂/P₁)</span><br>
+    口诀：<b>+3dB ≈ ×2，+10dB = ×10，−3dB = 一半</b>。
+  </div>
+  <div class="card">
+    <h3>2. 频率与波长</h3>
+    <span class="formula">λ = c / f　(c ≈ 3×10⁸ m/s)</span><br>
+    1 GHz → λ = 30 cm；77 GHz 毫米波雷达 → λ ≈ 3.9 mm。波长短到与电路尺寸相当时，导线就要当<b>传输线</b>处理。
+  </div>
+  <div class="card">
+    <h3>3. 滤波器</h3>
+    按功能分：<b>低通 / 高通 / 带通 / 带阻</b>。关键指标：截止频率 f<sub>c</sub>（−3dB 点）、阶数 N（越高滚降越陡，每阶约 −20dB/十倍频程）、带内纹波、群时延。巴特沃斯型：通带最平坦。
+  </div>
+  <div class="card">
+    <h3>4. 阻抗匹配与反射</h3>
+    信号沿线传播遇到阻抗突变会产生反射。反射系数：<br>
+    <span class="formula">Γ = (Z<sub>L</sub> − Z₀)/(Z<sub>L</sub> + Z₀)</span><br>
+    Z<sub>L</sub> = Z₀（通常 50Ω）时 Γ=0，能量全部传给负载——这就是<b>匹配</b>。
+  </div>
+  <div class="card">
+    <h3>5. VSWR 与回波损耗</h3>
+    <span class="formula">VSWR = (1+|Γ|)/(1−|Γ|)</span><br>
+    <span class="formula">RL = −20·lg|Γ| (dB)</span><br>
+    VSWR=1 完美匹配；VSWR=2 意味着约 11% 功率被反射（RL ≈ 9.5dB）。
+  </div>
+  <div class="card">
+    <h3>6. S 参数</h3>
+    高频下电压电流难直接测量，改用<b>入射/反射波</b>描述网络：S₁₁ = 输入反射（回波损耗），S₂₁ = 正向传输（增益/插损）。矢量网络分析仪（VNA）就是测它的。
+  </div>
+</div>
+
+<h2>三、仿真 ①：dB / dBm / W / V 换算器</h2>
+<div class="sim">
+  <div class="desc">任意输入一项，其余自动换算（电压按 50Ω 系统）。试试输入 0 dBm、30 dBm（=1W）。</div>
+  <div class="controls">
+    <div class="ctrl"><label>dBm</label><input type="number" id="in_dbm" value="0" step="0.1"></div>
+    <div class="ctrl"><label>功率 W</label><input type="number" id="in_w" step="any"></div>
+    <div class="ctrl"><label>电压 V<sub>rms</sub>（50Ω）</label><input type="number" id="in_v" step="any"></div>
+  </div>
+  <table class="conv-table">
+    <tr><td>dBm</td><td id="o_dbm">—</td></tr>
+    <tr><td>dBW</td><td id="o_dbw">—</td></tr>
+    <tr><td>功率</td><td id="o_w">—</td></tr>
+    <tr><td>电压 rms（50Ω）</td><td id="o_v">—</td></tr>
+    <tr><td>电压峰峰值（50Ω）</td><td id="o_vpp">—</td></tr>
+    <tr><td>直观感受</td><td id="o_desc">—</td></tr>
+  </table>
+</div>
+
+<h2>四、仿真 ②：巴特沃斯滤波器频响</h2>
+<div class="sim">
+  <div class="desc">巴特沃斯（Butterworth）是最常见的"最平坦通带"滤波器。调<b>阶数 N</b> 看滚降变陡；切到带通/带阻时 f<sub>c</sub> 为中心频率、带宽固定为 0.5 倍频程。注意 −3dB 点恰好落在截止频率上。</div>
+  <div class="controls">
+    <div class="ctrl"><label>类型</label>
+      <select id="ftype">
+        <option value="lp" selected>低通 LPF</option>
+        <option value="hp">高通 HPF</option>
+        <option value="bp">带通 BPF</option>
+        <option value="bs">带阻 BSF</option>
+      </select></div>
+    <div class="ctrl"><label>阶数 N <span id="v_order">4</span></label>
+      <input type="range" id="order" min="1" max="10" value="4"></div>
+    <div class="ctrl"><label>截止/中心频率 <span id="v_fc">1 GHz</span></label>
+      <input type="range" id="fc" min="6" max="10.3" step="0.05" value="9"><!-- log10(Hz) --></div>
+  </div>
+  <div class="canvas-pair">
+    <div><canvas id="cv_mag" height="260"></canvas><div class="legend"><i style="background:var(--accent)"></i>幅频响应 |H(f)|（dB）　<i style="background:var(--warn)"></i>−3dB 线</div></div>
+    <div><canvas id="cv_pha" height="260"></canvas><div class="legend"><i style="background:var(--accent2)"></i>相频响应（低通/高通参考相位）</div></div>
+  </div>
+  <div class="readout" id="filter_out"></div>
+</div>
+
+<h2>五、仿真 ③：放大器非线性 —— P1dB 压缩与三阶交调 IP3</h2>
+<div class="sim">
+  <div class="desc">左图：输出功率随输入的变化。小信号时严格线性（增益 G），输入加大后实际曲线（粉）偏离理想直线（灰）——偏离 1dB 的点就是 <b>P1dB</b>。右图：双音测试频谱，两个主音 f₁、f₂ 之外长出三阶交调分量 2f₁−f₂、2f₂−f₁（红），其斜率是主音的 3 倍，外推交点即 <b>IP3</b>。调"输入功率"看系统从线性区进入压缩区。</div>
+  <div class="controls">
+    <div class="ctrl"><label>输入功率/单音 P<sub>in</sub> <span id="v_pin">-20 dBm</span></label>
+      <input type="range" id="pin" min="-40" max="20" value="-20"></div>
+    <div class="ctrl"><label>小信号增益 G <span id="v_gain">20 dB</span></label>
+      <input type="range" id="gain" min="5" max="40" value="20"></div>
+    <div class="ctrl"><label>输出 IP3 <span id="v_oip3">30 dBm</span></label>
+      <input type="range" id="oip3" min="15" max="50" value="30"></div>
+  </div>
+  <div class="canvas-pair">
+    <div><canvas id="cv_comp" height="240"></canvas>
+      <div class="legend"><i style="background:#475569"></i>理想线性 G <i style="background:var(--accent2)"></i>实际输出（含压缩） <i style="background:var(--warn)"></i>当前工作点</div></div>
+    <div><canvas id="cv_im3" height="240"></canvas>
+      <div class="legend"><i style="background:var(--accent)"></i>主音 f₁,f₂（49/51 MHz） <i style="background:#f87171"></i>三阶交调 47/53 MHz（滤不掉！）</div></div>
+  </div>
+  <div class="readout" id="nl_out"></div>
+</div>
+
+<h2>六、仿真 ④：阻抗匹配与传输线反射</h2>
+<div class="sim">
+  <div class="desc">50Ω 传输线末端接负载 Z<sub>L</sub>。调 Z<sub>L</sub> 观察反射系数 Γ、VSWR 与回波损耗；下图为入射波与反射波叠加后线上<b>驻波</b>的幅度分布（VSWR 名字的由来）。Z<sub>L</sub>=50Ω 时驻波消失。</div>
+  <div class="controls">
+    <div class="ctrl"><label>负载阻抗 Z<sub>L</sub> <span id="v_zl">75 Ω</span></label>
+      <input type="range" id="zl" min="0" max="200" value="75"></div>
+    <div class="ctrl"><label>特性阻抗 Z₀ <span>50 Ω（常用）</span></label>
+      <input type="range" disabled style="visibility:hidden"></div>
+  </div>
+  <canvas id="cv_swr" height="240"></canvas>
+  <div class="legend"><i style="background:var(--accent)"></i>线上电压包络 |V(z)|（驻波）　位置从负载端向左延伸 1 个波长</div>
+  <div class="readout" id="swr_out"></div>
+</div>
+
+<h2>七、锁相环（PLL）与环路滤波器理论</h2>
+<div class="cards">
+  <div class="card" style="grid-column:1/-1">
+    <h3>1. PLL 是什么：一个相位反馈系统</h3>
+    锁相环让 VCO 的输出相位<b>死死盯住</b>参考晶振的相位，从而得到"晶振级稳定度"的任意频率。四个部件构成闭环：
+    <div class="arch">
+      <div class="blk">参考晶振<small>f<sub>ref</sub>，如 10 MHz</small></div><span class="arr">→</span>
+      <div class="blk">鉴相器 PD<small>比较相位差</small></div><span class="arr">→</span>
+      <div class="blk">环路滤波器 LF<small>决定动态性能</small></div><span class="arr">→</span>
+      <div class="blk">VCO<small>电压→频率</small></div><span class="arr">→ 输出</span>
+      <div class="fb">←—————— ÷N 分频器（反馈支路）←——————</div>
+    </div>
+    相位差 → 误差电压 → 修正 VCO 频率 → 相位差缩小……直到锁定（相位差恒定、频率精确相等）。
+  </div>
+  <div class="card">
+    <h3>2. 鉴相器（PD）</h3>
+    把两个信号的<b>相位差</b>转换为误差信号。模拟乘法器、异或门、以及频率合成器标配的<b>鉴频鉴相器 PFD</b>（带电荷泵，还能在失锁时指示频率方向，帮助捕获）。
+  </div>
+  <div class="card">
+    <h3>3. 环路滤波器：PLL 的"大脑"</h3>
+    一阶环无滤波器（只有增益），必留静态相位误差。主流是<b>比例+积分（PI）</b>二阶环：<br>
+    <span class="formula">F(s) = K<sub>p</sub> + K<sub>i</sub>/s</span><br>
+    积分支路让频率误差被"记住"并消除（锁定后相位误差为零），比例支路提供阻尼。
+  </div>
+  <div class="card">
+    <h3>4. 阻尼系数 ζ 与环路带宽 ω<sub>n</sub></h3>
+    二阶环的阶跃响应完全由这两个参数决定：<br>
+    <span class="formula">ω<sub>n</sub> = √(K<sub>i</sub>/N)，ζ = K<sub>p</sub>·N/(2ω<sub>n</sub>·N)·…（工程上直接调 K<sub>p</sub>、K<sub>i</sub>）</span><br>
+    <b>ζ&lt;1</b> 欠阻尼：快但过冲振铃；<b>ζ≈0.7</b> 常用折中；<b>ζ&gt;1</b> 过阻尼：稳但慢。仿真⑤直接演示。
+  </div>
+  <div class="card">
+    <h3>5. 环路带宽的权衡</h3>
+    环路带宽以内：跟踪晶振的相位噪声（×20·lgN 恶化）；带宽以外：保留 VCO 自身噪声。<b>带宽窄</b>→滤掉参考杂散好，但锁定慢、抑制不了 VCO 近端噪声；<b>带宽宽</b>→锁定快，但杂散和参考噪声容易混进来。
+  </div>
+  <div class="card">
+    <h3>6. 频率合成应用</h3>
+    <span class="formula">f<sub>out</sub> = N × f<sub>ref</sub></span><br>
+    改变分频比 N 即改变输出频率——MCU 时钟、WiFi/5G 本振、雷达 chirp 源都靠它。整数 N 步进 = f<sub>ref</sub>；要更小步进就用<b>小数 N 分频</b>（Σ-Δ 调制抖动 N 值），代价是量化杂散。
+  </div>
+</div>
+
+<h2>八、仿真 ⑤：PLL 锁定过程瞬态仿真</h2>
+<div class="sim">
+  <div class="desc">对"PD(增益1) → PI 环路滤波器 → VCO(增益1) → ÷N"的二阶环做逐点数值仿真。VCO 自由振荡频率故意偏开 1%，观察闭环如何把它<b>拉入锁定</b>。调阻尼 ζ 看欠阻尼振铃与过阻尼迟缓；调环路带宽看锁定速度。这正是环路滤波器设计的核心画面。</div>
+  <div class="controls">
+    <div class="ctrl"><label>分频比 N <span id="v_plln">64</span></label>
+      <input type="range" id="pll_n" min="10" max="100" value="64"></div>
+    <div class="ctrl"><label>阻尼系数 ζ <span id="v_pllz">0.70</span></label>
+      <input type="range" id="pll_z" min="0.2" max="2" step="0.05" value="0.7"></div>
+    <div class="ctrl"><label>环路带宽 f<sub>n</sub> <span id="v_pllfn">100 kHz</span></label>
+      <input type="range" id="pll_fn" min="20" max="500" step="10" value="100"></div>
+  </div>
+  <div class="canvas-pair">
+    <div><canvas id="cv_pllerr" height="240"></canvas>
+      <div class="legend"><i style="background:var(--accent2)"></i>相位误差（rad，折回 ±π）——锁定后应为恒定值（积分支路把它压到 0 附近）</div></div>
+    <div><canvas id="cv_pllfreq" height="240"></canvas>
+      <div class="legend"><i style="background:var(--accent)"></i>VCO 频率 <i style="background:var(--warn)"></i>目标 N×f<sub>ref</sub>（虚线）</div></div>
+  </div>
+  <div class="readout" id="pll_out"></div>
+</div>
+
+</div>
+<footer>rftools · 射频基础 · 纯本地单文件，无外部依赖</footer>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+
+/* ============ 公共：Canvas 绘图 ============ */
+function setupCanvas(id){
+  const cv = $(id);
+  const dpr = window.devicePixelRatio||1;
+  const w = cv.clientWidth, h = cv.height;
+  cv.width = w*dpr; cv.height = h*dpr;
+  const ctx = cv.getContext("2d");
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  return {ctx, w, h};
+}
+function drawGrid(ctx,w,h,xLabel,yLabel){
+  ctx.clearRect(0,0,w,h);
+  ctx.strokeStyle="#22304a"; ctx.lineWidth=1; ctx.beginPath();
+  for(let i=1;i<10;i++){ ctx.moveTo(w*i/10,0); ctx.lineTo(w*i/10,h); }
+  for(let i=1;i<5;i++){ ctx.moveTo(0,h*i/5); ctx.lineTo(w,h*i/5); }
+  ctx.stroke();
+  ctx.fillStyle="#64748b"; ctx.font="11px Consolas";
+  if(xLabel) ctx.fillText(xLabel, w-ctx.measureText(xLabel).width-6, h-6);
+  if(yLabel) ctx.fillText(yLabel, 6, 14);
+}
+function plotXY(ctx, xs, ys, xa,xb, ya,yb, w,h, color, lw){
+  ctx.strokeStyle=color; ctx.lineWidth=lw||1.5; ctx.beginPath();
+  let started=false;
+  for(let i=0;i<xs.length;i++){
+    const X=(xs[i]-xa)/(xb-xa)*w, Y=h-(ys[i]-ya)/(yb-ya)*h;
+    if(X<0||X>w){ started=false; continue; }
+    if(!started){ ctx.moveTo(X,Y); started=true; } else ctx.lineTo(X,Y);
+  }
+  ctx.stroke();
+}
+
+/* ============ 仿真①：dB 换算 ============ */
+function fmt(x){ // 自适应单位
+  if(!isFinite(x)) return "—";
+  const a=Math.abs(x);
+  if(a>=1) return x.toPrecision(4);
+  const units=[[1e-3,"m"],[1e-6,"µ"],[1e-9,"n"],[1e-12,"p"],[1e-15,"f"]];
+  for(const [s,u] of units) if(a>=s) return (x/s).toPrecision(4)+" "+u;
+  return x.toExponential(2);
+}
+function descDbm(dbm){
+  if(dbm>=50) return "约 100 W —— 广播发射台量级";
+  if(dbm>=30) return "≥1 W —— 对讲机/基站单通道量级";
+  if(dbm>=20) return "100 mW —— WiFi 路由器发射功率";
+  if(dbm>=0) return "mW 级 —— 蓝牙、遥控器";
+  if(dbm>=-60) return "µW~nW 级 —— 近距离接收信号";
+  if(dbm>=-100) return "pW 级 —— 手机在弱信号区接收到的功率";
+  return "fW 级以下 —— 接近热噪声底，GPS 信号约 −130 dBm";
+}
+let convLock=false;
+function setConverter(dbm){
+  if(convLock) return; convLock=true;
+  const w = Math.pow(10, dbm/10)*1e-3;
+  const v = Math.sqrt(w*50);
+  $("o_dbm").textContent = dbm.toFixed(2)+" dBm";
+  $("o_dbw").textContent = (dbm-30).toFixed(2)+" dBW";
+  $("o_w").textContent = fmt(w)+"W （= "+w.toExponential(3)+" W）";
+  $("o_v").textContent = fmt(v)+"V";
+  $("o_vpp").textContent = fmt(v*2*Math.SQRT2)+"V";
+  $("o_desc").textContent = descDbm(dbm);
+  if(document.activeElement!==$("in_dbm")) $("in_dbm").value=dbm.toFixed(2);
+  if(document.activeElement!==$("in_w")) $("in_w").value=w.toExponential(3);
+  if(document.activeElement!==$("in_v")) $("in_v").value=v.toPrecision(4);
+  convLock=false;
+}
+$("in_dbm").addEventListener("input",e=>setConverter(+e.target.value));
+$("in_w").addEventListener("input",e=>{ const w=+e.target.value; if(w>0) setConverter(10*Math.log10(w/1e-3)); });
+$("in_v").addEventListener("input",e=>{ const v=+e.target.value; if(v>0) setConverter(10*Math.log10(v*v/50/1e-3)); });
+setConverter(0);
+
+/* ============ 仿真②：巴特沃斯滤波器 ============ */
+function butterMag(type, N, f, fc){
+  const r = f/fc;
+  if(type==="lp") return 1/Math.sqrt(1+Math.pow(r,2*N));
+  if(type==="hp") return 1/Math.sqrt(1+Math.pow(1/Math.max(r,1e-9),2*N));
+  // 带通/带阻：二阶谐振单元级联，Q=2（半倍频程带宽）
+  const q=2, t = q*Math.abs(r-1/r);
+  const bp = 1/Math.sqrt(1+Math.pow(t,2*Math.ceil(N/2)));
+  if(type==="bp") return bp;
+  return 1/Math.sqrt(1+Math.pow(1/Math.max(t,1e-9),2*Math.ceil(N/2))); // 带阻
+}
+function updateFilter(){
+  const type=$("ftype").value, N=+$("order").value;
+  const fc=Math.pow(10, +$("fc").value);
+  $("v_order").textContent=N;
+  $("v_fc").textContent = fmt(fc)+"Hz";
+  const fmin=Math.pow(10, +$("fc").value-1.5), fmax=Math.pow(10, +$("fc").value+1.5);
+  const M=400, xs=[], mag=[], pha=[];
+  for(let i=0;i<M;i++){
+    const lg = Math.log10(fmin)+(Math.log10(fmax)-Math.log10(fmin))*i/(M-1);
+    const f=Math.pow(10,lg);
+    xs.push(lg);
+    const m=butterMag(type,N,f,fc);
+    mag.push(20*Math.log10(m+1e-9));
+    // 相位近似：低通 −N·atan(f/fc)，高通相反（示意用）
+    let p;
+    if(type==="lp") p=-N*Math.atan(f/fc)*180/Math.PI;
+    else if(type==="hp") p=N*(Math.PI/2-Math.atan(f/fc))*180/Math.PI;
+    else p=-Math.ceil(N/2)*2*Math.atan(2*Math.abs(f/fc-fc/f))*180/Math.PI;
+    pha.push(p);
+  }
+  const mg=setupCanvas("cv_mag");
+  const x0=Math.log10(fmin), x1=Math.log10(fmax);
+  drawGrid(mg.ctx,mg.w,mg.h,"频率（对数刻度）","dB");
+  // -3dB 参考线
+  const y3 = mg.h-(-3-(-60))/(5-(-60))*mg.h;
+  mg.ctx.strokeStyle="#fbbf24"; mg.ctx.setLineDash([5,4]); mg.ctx.beginPath();
+  mg.ctx.moveTo(0,y3); mg.ctx.lineTo(mg.w,y3); mg.ctx.stroke(); mg.ctx.setLineDash([]);
+  // 截止频率竖线
+  const Xc=(Math.log10(fc)-x0)/(x1-x0)*mg.w;
+  mg.ctx.strokeStyle="rgba(251,191,36,.4)"; mg.ctx.beginPath(); mg.ctx.moveTo(Xc,0); mg.ctx.lineTo(Xc,mg.h); mg.ctx.stroke();
+  plotXY(mg.ctx,xs,mag,x0,x1,-60,5,mg.w,mg.h,"#38bdf8",2);
+  mg.ctx.fillStyle="#64748b"; mg.ctx.font="11px Consolas";
+  mg.ctx.fillText(fmt(fmin)+"Hz", 6, mg.h-6); mg.ctx.fillText(fmt(fmax)+"Hz", mg.w-70, mg.h-6);
+  mg.ctx.fillStyle="#fbbf24"; mg.ctx.fillText("fc="+fmt(fc)+"Hz", Xc+4, 14);
+
+  const ph=setupCanvas("cv_pha");
+  drawGrid(ph.ctx,ph.w,ph.h,"频率（对数刻度）","度");
+  const pmin=Math.min(...pha), pmax=Math.max(...pha, 1);
+  plotXY(ph.ctx,xs,pha,x0,x1,Math.min(pmin,-10),Math.max(pmax,10),ph.w,ph.h,"#f472b6",2);
+
+  const rolloff = (type==="lp"||type==="hp") ? N*20 : Math.ceil(N/2)*20;
+  $("filter_out").textContent =
+    "N="+N+" 阶 · fc="+fmt(fc)+"Hz · 过渡带滚降 ≈ −"+rolloff+" dB/十倍频程 · fc 处衰减恰为 −3.01 dB";
+}
+["ftype","order","fc"].forEach(id=>$(id).addEventListener("input",updateFilter));
+
+/* ============ 仿真③：驻波 ============ */
+function updateSWR(){
+  const ZL=+$("zl").value, Z0=50;
+  $("v_zl").textContent=ZL+" Ω";
+  const G=(ZL-Z0)/(ZL+Z0), aG=Math.abs(G);
+  const vswr = aG>=1 ? Infinity : (1+aG)/(1-aG);
+  const rl = aG===0 ? Infinity : -20*Math.log10(aG);
+  const mismatchLoss = -10*Math.log10(1-aG*aG);
+
+  const cv=setupCanvas("cv_swr");
+  drawGrid(cv.ctx,cv.w,cv.h,"距负载位置（波长 λ）","|V(z)| 归一化");
+  const M=400, xs=[], env=[], mx=[], mn=[];
+  for(let i=0;i<M;i++){
+    const z=i/(M-1); // 0~1 λ
+    xs.push(z);
+    env.push(Math.sqrt(1+aG*aG+2*aG*Math.cos(4*Math.PI*z+(G<0?Math.PI:0))));
+    mx.push(1+aG); mn.push(1-aG);
+  }
+  plotXY(cv.ctx,xs,mx,0,1,0,2.2,cv.w,cv.h,"rgba(163,230,53,.5)",1);
+  plotXY(cv.ctx,xs,mn,0,1,0,2.2,cv.w,cv.h,"rgba(163,230,53,.5)",1);
+  plotXY(cv.ctx,xs,env,0,1,0,2.2,cv.w,cv.h,"#38bdf8",2);
+
+  $("swr_out").innerHTML =
+    "Γ = "+G.toFixed(3)+"（|Γ|="+aG.toFixed(3)+"）· VSWR = "+(isFinite(vswr)?vswr.toFixed(2):"∞")+
+    " · 回波损耗 RL = "+(isFinite(rl)?rl.toFixed(1)+" dB":"∞")+
+    " · 失配损耗 = "+mismatchLoss.toFixed(2)+" dB · 反射功率占比 = "+(aG*aG*100).toFixed(1)+"%"+
+    (ZL===50?" —— ✓ 完美匹配！":ZL===0?" —— 短路：全反射且反相":ZL>=199.9?" —— 开路：全反射且同相":"");
+}
+$("zl").addEventListener("input",updateSWR);
+
+/* ============ 仿真③：非线性 P1dB / IP3 ============ */
+function updateNL(){
+  const pin=+$("pin").value, G=+$("gain").value, OIP3=+$("oip3").value;
+  $("v_pin").textContent=pin+" dBm";
+  $("v_gain").textContent=G+" dB";
+  $("v_oip3").textContent=OIP3+" dBm";
+  // 由 OIP3 推 P1dB（经验关系 P1dB ≈ OIP3 − 10.6 dB）
+  const P1dB=OIP3-10.6;
+  // 压缩模型：饱和点 Psat = P1dB + 6.87dB，使 lin 输入下输出恰在 P1dB 处压缩 1dB
+  const Psat=P1dB+6.87;
+  const comp=(pi)=>{ const lin=pi+G; return lin - Math.max(0, 10*Math.log10(1+Math.pow(10,(lin-Psat)/10))); };
+  const cv=setupCanvas("cv_comp");
+  drawGrid(cv.ctx,cv.w,cv.h,"输入功率 dBm","输出功率 dBm");
+  const xs=[], ideal=[], real=[];
+  for(let pi=-40;pi<=20;pi+=0.5){ xs.push(pi); ideal.push(pi+G); real.push(comp(pi)); }
+  const ymin=-25, ymax=Math.max(G+20, OIP3+5);
+  plotXY(cv.ctx,xs,ideal,-40,20,ymin,ymax,cv.w,cv.h,"#475569",1.5);
+  plotXY(cv.ctx,xs,real,-40,20,ymin,ymax,cv.w,cv.h,"#f472b6",2);
+  // P1dB 点标注
+  const pin1=P1dB-G+1; // 输入功率对应的压缩1dB点（近似）
+  const Xp=(pin1+40)/60*cv.w, Yp=cv.h-(P1dB-ymin)/(ymax-ymin)*cv.h;
+  cv.ctx.strokeStyle="#fbbf24"; cv.ctx.setLineDash([4,4]);
+  cv.ctx.beginPath(); cv.ctx.moveTo(Xp,cv.h); cv.ctx.lineTo(Xp,Yp); cv.ctx.lineTo(0,Yp); cv.ctx.stroke();
+  cv.ctx.setLineDash([]);
+  cv.ctx.fillStyle="#fbbf24"; cv.ctx.font="11px Consolas";
+  cv.ctx.fillText("P1dB≈"+P1dB.toFixed(1)+"dBm", Math.min(Xp+4,cv.w-100), Yp-6);
+  // 当前工作点
+  const po=comp(pin);
+  const Xw=(pin+40)/60*cv.w, Yw=cv.h-(po-ymin)/(ymax-ymin)*cv.h;
+  cv.ctx.fillStyle="#fbbf24"; cv.ctx.beginPath(); cv.ctx.arc(Xw,Yw,5,0,7); cv.ctx.fill();
+  // IM3 频谱棒图
+  const sp=setupCanvas("cv_im3");
+  drawGrid(sp.ctx,sp.w,sp.h,"频率 MHz","输出功率 dBm");
+  const PoutTone=po;
+  // IM3 输出功率：Pim3 = 3·Pout_tone − 2·OIP3（小信号近似）
+  let Pim3=3*PoutTone-2*OIP3;
+  const tones=[[49,PoutTone,"#38bdf8","f₁"],[51,PoutTone,"#38bdf8","f₂"],[47,Pim3,"#f87171","2f₁−f₂"],[53,Pim3,"#f87171","2f₂−f₁"]];
+  const fmin=44,fmax=57, dbmin=-60, dbmax=ymax;
+  for(const [f,p,c,lb] of tones){
+    if(p<dbmin) continue;
+    const X=(f-fmin)/(fmax-fmin)*sp.w, Y=sp.h-(p-dbmin)/(dbmax-dbmin)*sp.h;
+    sp.ctx.strokeStyle=c; sp.ctx.lineWidth=4;
+    sp.ctx.beginPath(); sp.ctx.moveTo(X,sp.h); sp.ctx.lineTo(X,Y); sp.ctx.stroke();
+    sp.ctx.fillStyle=c; sp.ctx.font="11px Consolas";
+    sp.ctx.fillText(lb+" "+p.toFixed(0), X-22, Y-6);
+  }
+  const delta=PoutTone-Pim3;
+  $("nl_out").textContent =
+    "工作点：Pin="+pin+" dBm → Pout="+po.toFixed(1)+" dBm（压缩 "+((pin+G)-po).toFixed(2)+" dB"+
+    (po>P1dB?"，已越过 P1dB 进入压缩区 ⚠":"，线性区 ✓")+"）· 三阶交调相对主音 "+delta.toFixed(0)+
+    " dBc · 经验关系：P1dB ≈ OIP3 − 10.6 dB";
+}
+["pin","gain","oip3"].forEach(id=>$(id).addEventListener("input",updateNL));
+
+/* ============ 仿真⑤：PLL 锁定过程 ============ */
+function updatePLL(){
+  const fref=10e6, N=+$("pll_n").value, zeta=+$("pll_z").value, fn=+$("pll_fn").value*1e3;
+  $("v_plln").textContent=N;
+  $("v_pllz").textContent=zeta.toFixed(2);
+  $("v_pllfn").textContent=fn/1e3+" kHz";
+  const wn=2*Math.PI*fn;
+  // PI 环路滤波器系数（Kd=Kv=1 归一化）：2ζωn = Kp/N，ωn² = Ki/N
+  const Kp=2*zeta*wn*N, Ki=wn*wn*N;
+  const fTarget=N*fref;
+  let fVco=fTarget*0.99;          // VCO 自由振荡偏开 1%
+  const Tsettle=5/(zeta*wn);      // 显示约 5 个时间常数
+  const M=2500, dt=Tsettle/M;
+  let phiRef=0, phiVco=0, integ=0;
+  const ts=[], err=[], fr=[];
+  for(let i=0;i<M;i++){
+    phiRef+=2*Math.PI*fref*dt;
+    phiVco+=2*Math.PI*fVco*dt;
+    let e=(phiRef-phiVco/N)%(2*Math.PI);        // 相位差（折回 ±π）
+    if(e>Math.PI) e-=2*Math.PI; if(e<-Math.PI) e+=2*Math.PI;
+    integ+=Ki*e*dt;
+    const vc=Kp*e+integ;
+    fVco=fTarget*0.99+vc/(2*Math.PI);
+    ts.push(i*dt*1e6); err.push(e); fr.push(fVco/1e6);
+  }
+  const c1=setupCanvas("cv_pllerr");
+  drawGrid(c1.ctx,c1.w,c1.h,"时间 µs","相位误差 rad");
+  plotXY(c1.ctx,ts,err,0,Tsettle*1e6,-3.3,3.3,c1.w,c1.h,"#f472b6",1.5);
+  const c2=setupCanvas("cv_pllfreq");
+  drawGrid(c2.ctx,c2.w,c2.h,"时间 µs","VCO 频率 MHz");
+  const fmin=Math.min(...fr,fTarget/1e6)*0.999, fmax=Math.max(...fr,fTarget/1e6)*1.001;
+  plotXY(c2.ctx,ts,fr,0,Tsettle*1e6,fmin,fmax,c2.w,c2.h,"#38bdf8",1.8);
+  const Yt=c2.h-(fTarget/1e6-fmin)/(fmax-fmin)*c2.h;
+  c2.ctx.strokeStyle="#fbbf24"; c2.ctx.setLineDash([6,4]);
+  c2.ctx.beginPath(); c2.ctx.moveTo(0,Yt); c2.ctx.lineTo(c2.w,Yt); c2.ctx.stroke(); c2.ctx.setLineDash([]);
+  // 锁定判定：末尾 10% 时段频率稳定在目标 ±0.01%
+  let locked=true;
+  for(let i=Math.floor(M*0.9);i<M;i++) if(Math.abs(fr[i]-fTarget/1e6)>fTarget/1e6*1e-4){locked=false;break;}
+  const dampingTxt = zeta<1?"欠阻尼：有过冲振铃":zeta===1?"临界阻尼":"过阻尼：缓慢无过冲";
+  $("pll_out").textContent =
+    "输出频率 = N×fref = "+(fTarget/1e6)+" MHz ｜ ζ="+zeta.toFixed(2)+"（"+dampingTxt+"）｜ 理论锁定时间 ≈ 4/(ζωn) = "+
+    (4/(zeta*wn)*1e6).toFixed(1)+" µs ｜ "+(locked?"✓ 显示窗口内已锁定":"⚠ 尚未锁定——增大带宽或 ζ 试试");
+}
+["pll_n","pll_z","pll_fn"].forEach(id=>$(id).addEventListener("input",updatePLL));
+
+updatePLL();
+updateNL();
+updateFilter();
+updateSWR();
+window.addEventListener("resize",()=>{ updatePLL(); updateNL(); updateFilter(); updateSWR(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>毫米波雷达基础 — FMCW 测距测速原理</title>
+<style>
+:root{
+  --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --border:#2d3748;
+  --text:#e2e8f0; --dim:#94a3b8; --accent:#38bdf8; --accent2:#f472b6;
+  --accent3:#a3e635; --warn:#fbbf24;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;line-height:1.7;padding:0 0 60px}
+header{background:linear-gradient(135deg,#2a1a2e,#16213e);border-bottom:1px solid var(--border);padding:28px 24px}
+header h1{font-size:26px;color:var(--accent)}
+header p{color:var(--dim);margin-top:6px;font-size:14px}
+.back{display:inline-block;margin-bottom:10px;color:var(--dim);text-decoration:none;font-size:13px}
+.back:hover{color:var(--accent)}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+h2{font-size:20px;color:var(--accent);margin:38px 0 14px;padding-left:12px;border-left:4px solid var(--accent)}
+h3{font-size:16px;color:var(--accent2);margin:0 0 8px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px 18px;font-size:14px}
+.card b{color:var(--accent3)}
+.formula{display:inline-block;background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:2px 10px;margin:4px 0;font-family:Consolas,monospace;color:var(--warn);font-size:14px}
+.sim{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px;margin-top:16px}
+.sim .desc{color:var(--dim);font-size:13px;margin-bottom:12px}
+.controls{display:flex;flex-wrap:wrap;gap:16px 26px;margin-bottom:14px}
+.ctrl{display:flex;flex-direction:column;font-size:13px;color:var(--dim);min-width:170px}
+.ctrl label{display:flex;justify-content:space-between;margin-bottom:4px}
+.ctrl label span{color:var(--accent);font-family:Consolas,monospace}
+input[type=range]{width:190px;accent-color:var(--accent)}
+button{background:var(--accent);color:#06202e;border:none;border-radius:6px;padding:6px 14px;font-size:13px;cursor:pointer;font-weight:bold}
+button.ghost{background:var(--panel2);color:var(--text);border:1px solid var(--border);font-weight:normal}
+canvas{display:block;width:100%;background:#0a0e14;border:1px solid var(--border);border-radius:8px}
+.canvas-pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:760px){.canvas-pair{grid-template-columns:1fr}}
+.readout{font-family:Consolas,monospace;font-size:14px;color:var(--accent3);background:var(--panel2);border-radius:6px;padding:8px 14px;margin-top:10px;display:inline-block}
+.legend{font-size:12px;color:var(--dim);margin-top:6px}
+.legend i{display:inline-block;width:18px;height:3px;vertical-align:middle;margin:0 6px 2px 12px;border-radius:2px}
+footer{text-align:center;color:#475569;font-size:12px;margin-top:50px}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="back" href="../index.html">← 返回工具首页</a>
+    <h1>毫米波雷达基础（FMCW）</h1>
+    <p>线性调频 Chirp · 拍频测距 · 多普勒测速 · 距离-多普勒二维处理 —— 全部仿真在浏览器本地运行</p>
+  </div>
+</header>
+<div class="wrap">
+
+<h2>一、雷达基础理论</h2>
+<div class="cards">
+  <div class="card">
+    <h3>1. 雷达方程（最重要的一条）</h3>
+    接收功率与距离的<b>四次方</b>成反比：<br>
+    <span class="formula">P<sub>r</sub> = P<sub>t</sub>·G²·λ²·σ / ((4π)³·R⁴)</span><br>
+    距离翻倍，回波弱 16 倍（−12dB）！这就是雷达"看得远"如此困难的根本原因。仿真④可亲手验证。
+  </div>
+  <div class="card">
+    <h3>2. 目标散射截面积 RCS（σ）</h3>
+    衡量目标"反射雷达波的能力"，单位 m²。典型值：轿车 ≈ 10 m²，行人 ≈ 1 m²，自行车 ≈ 2 m²，隐形飞机可低于 0.001 m²。σ 越小越难发现。
+  </div>
+  <div class="card">
+    <h3>3. 为什么车载雷达选 77 GHz？</h3>
+    波长约 3.9 mm → 天线仅毫米级，可把多个收发通道集成进指甲盖大的芯片；法规允许 76~81 GHz 共 <b>5 GHz 带宽</b> → 距离分辨率达厘米级。代价：路径损耗大、器件工艺要求高。
+  </div>
+  <div class="card">
+    <h3>4. 完整信号处理链</h3>
+    回波 → 混频得中频 → ADC 采样 → <b>距离 FFT</b>（快时间）→ <b>多普勒 FFT</b>（慢时间，跨 chirp）→ <b>CFAR 检测</b> → <b>角度 FFT</b>（跨天线）→ 点云与跟踪。本页仿真③演示的就是前三步。
+  </div>
+  <div class="card">
+    <h3>5. CFAR 恒虚警检测</h3>
+    噪声起伏不定，固定门限会忽漏忽虚。CFAR 用每个单元<b>周围邻域的平均噪声</b>自适应设门限，保证虚警率恒定（如 10⁻⁶）。是雷达从"频谱图"变成"目标列表"的关键一步。
+  </div>
+  <div class="card">
+    <h3>6. 角度测量与 MIMO 阵列</h3>
+    同一回波到达相邻接收天线的相位差 Δφ = 2π·d·sinθ/λ，据此求到达角 θ。多发多收（MIMO）可虚拟出几十上百个阵元，角分辨率 Δθ ≈ λ/(N·d) —— 毫米波雷达因此能"成像"。
+  </div>
+</div>
+
+<h2>二、FMCW 核心公式速览</h2>
+<div class="cards">
+  <div class="card">
+    <h3>1. 什么是毫米波雷达？</h3>
+    工作在 76~81 GHz（车载）、60 GHz（室内）等频段，波长仅约 <b>4 mm</b>。波长短 → 天线可以做得很小，分辨率极高，广泛用于汽车辅助驾驶、手势识别、生命体征监测。
+  </div>
+  <div class="card">
+    <h3>2. FMCW 与 Chirp</h3>
+    FMCW（调频连续波）发射频率随时间线性爬升的信号，称为一个 <b>chirp</b>：<br>
+    <span class="formula">f(t) = f₀ + (B/T<sub>c</sub>)·t</span><br>
+    B = 扫频带宽，T<sub>c</sub> = chirp 周期，斜率 S = B/T<sub>c</sub>。
+  </div>
+  <div class="card">
+    <h3>3. 拍频测距（核心！）</h3>
+    回波比发射信号晚 τ = 2R/c。发射与接收混频后得到恒定差频（拍频/中频）：<br>
+    <span class="formula">f<sub>b</sub> = S·τ = 2·S·R / c</span><br>
+    <span class="formula">R = c·f<sub>b</sub> / (2S)</span><br>
+    <b>测频率 → 得距离</b>，这就是 FFT 登场的地方。
+  </div>
+  <div class="card">
+    <h3>4. 距离分辨率</h3>
+    两个目标要能分开，拍频至少差一个 FFT 谱线（1/T<sub>c</sub>），推导出：<br>
+    <span class="formula">ΔR = c / (2B)</span><br>
+    <b>只取决于带宽 B</b>！B=1 GHz → ΔR=15 cm；B=4 GHz → ΔR≈3.75 cm。
+  </div>
+  <div class="card">
+    <h3>5. 多普勒测速</h3>
+    运动目标使回波相位逐 chirp 变化。连发 N 个 chirp，对每个距离单元沿"慢时间"再做一次 FFT（二维 FFT）：<br>
+    <span class="formula">v = λ·f<sub>d</sub> / 2，Δv = λ / (2·N·T<sub>c</sub>)</span><br>
+    最大不模糊速度 v<sub>max</sub> = λ/(4T<sub>c</sub>)。
+  </div>
+  <div class="card">
+    <h3>6. 最大不模糊距离</h3>
+    拍频不能超过 ADC 采样率的一半：<br>
+    <span class="formula">R<sub>max</sub> = f<sub>s</sub>·c / (4S)</span><br>
+    工程上还要考虑 CFAR 恒虚警检测、角度估计（多天线阵列）等，构成完整信号处理链。
+  </div>
+</div>
+
+<h2>三、仿真 ①：Chirp 时频图与拍频的产生</h2>
+<div class="sim">
+  <div class="desc">发射 chirp（蓝）经目标反射后延迟 τ 返回（粉），混频得到恒定差频——拍频（绿）。目标越远，延迟越大，拍频越高。</div>
+  <div class="controls">
+    <div class="ctrl"><label>带宽 B <span id="v_B">1.0 GHz</span></label>
+      <input type="range" id="B" min="100" max="4000" step="100" value="1000"></div>
+    <div class="ctrl"><label>Chirp 周期 T<sub>c</sub> <span id="v_Tc">50 µs</span></label>
+      <input type="range" id="Tc" min="20" max="200" value="50"></div>
+    <div class="ctrl"><label>目标距离 R <span id="v_R1">30 m</span></label>
+      <input type="range" id="R1" min="1" max="200" value="30"></div>
+  </div>
+  <div class="canvas-pair">
+    <div><canvas id="cv_chirp" height="260"></canvas>
+      <div class="legend"><i style="background:var(--accent)"></i>发射 f<sub>TX</sub>(t) <i style="background:var(--accent2)"></i>接收 f<sub>RX</sub>(t)（延迟 τ=2R/c）</div></div>
+    <div><canvas id="cv_beat" height="260"></canvas>
+      <div class="legend"><i style="background:var(--accent3)"></i>拍频 f<sub>b</sub>(t) = f<sub>TX</sub> − f<sub>RX</sub>（在有效区为常数）</div></div>
+  </div>
+  <div class="readout" id="chirp_out"></div>
+</div>
+
+<h2>四、仿真 ②：拍频信号 → FFT → 测距</h2>
+<div class="sim">
+  <div class="desc">按 ADC 采样率对拍频信号采样 256 点并做 FFT。谱峰位置换算出距离。可开第二个目标，观察两个目标距离太近时谱峰无法区分——这就是 ΔR=c/2B 的物理意义（默认 B 下 ΔR=15 cm，两目标需差 15 cm 以上）。</div>
+  <div class="controls">
+    <div class="ctrl"><label>目标1 距离 <span id="v_t1">30 m</span></label>
+      <input type="range" id="t1" min="2" max="150" step="0.5" value="30"></div>
+    <div class="ctrl"><label>目标2 距离（0=关闭） <span id="v_t2">45 m</span></label>
+      <input type="range" id="t2" min="0" max="150" step="0.5" value="45"></div>
+    <div class="ctrl"><label>噪声 <span id="v_nz">0.20</span></label>
+      <input type="range" id="nz" min="0" max="1" step="0.05" value="0.2"></div>
+  </div>
+  <div class="canvas-pair">
+    <div><canvas id="cv_if" height="220"></canvas><div class="legend"><i style="background:var(--accent)"></i>IF 拍频信号时域（一个 chirp 内）</div></div>
+    <div><canvas id="cv_rfft" height="220"></canvas><div class="legend"><i style="background:var(--accent3)"></i>距离维 FFT 谱（横轴已换算为距离）</div></div>
+  </div>
+  <div class="readout" id="range_out"></div>
+</div>
+
+<h2>五、仿真 ③：距离-多普勒二维图（2D-FFT）</h2>
+<div class="sim">
+  <div class="desc">连续发射 64 个 chirp，每个采 128 点：先沿快时间做 FFT 得距离维，再沿慢时间做 FFT 得速度维，得到距离-多普勒热力图（RD Map）。亮斑即目标——这是车载雷达"看到"世界的原始画面。</div>
+  <div class="controls">
+    <div class="ctrl"><label>目标A：距离 <span id="v_rA">40 m</span></label><input type="range" id="rA" min="3" max="90" value="40"></div>
+    <div class="ctrl"><label>目标A：速度 <span id="v_vA">10 m/s</span></label><input type="range" id="vA" min="-20" max="20" step="0.5" value="10"></div>
+    <div class="ctrl"><label>目标B：距离 <span id="v_rB">65 m</span></label><input type="range" id="rB" min="3" max="90" value="65"></div>
+    <div class="ctrl"><label>目标B：速度 <span id="v_vB">-6 m/s</span></label><input type="range" id="vB" min="-20" max="20" step="0.5" value="-6"></div>
+  </div>
+  <canvas id="cv_rd" height="340"></canvas>
+  <div class="legend">横轴：多普勒速度（m/s，负=远离）｜纵轴：距离（m）｜颜色越亮回波越强（dB）</div>
+  <div class="readout" id="rd_out"></div>
+</div>
+
+<h2>六、仿真 ④：雷达方程 —— 回波功率与检测距离</h2>
+<div class="sim">
+  <div class="desc">按雷达方程计算不同距离下的回波功率（蓝线），与接收机灵敏度（黄线）比较，交点即<b>最大检测距离</b>。调发射功率、天线增益、目标 RCS 观察检测距离变化。注意纵轴是对数刻度：距离 ×2，回波 −12 dB。</div>
+  <div class="controls">
+    <div class="ctrl"><label>发射功率 P<sub>t</sub> <span id="v_pt">12 dBm</span></label>
+      <input type="range" id="pt" min="0" max="30" value="12"></div>
+    <div class="ctrl"><label>天线增益 G（收发各） <span id="v_gt">12 dBi</span></label>
+      <input type="range" id="gt" min="0" max="25" value="12"></div>
+    <div class="ctrl"><label>目标 RCS σ <span id="v_rcs">10 m²（轿车）</span></label>
+      <input type="range" id="rcs" min="-3" max="2" step="0.1" value="1"><!-- log10(σ) --></div>
+    <div class="ctrl"><label>噪声系数 NF <span id="v_nf">6 dB</span></label>
+      <input type="range" id="nf" min="1" max="15" value="6"></div>
+  </div>
+  <canvas id="cv_req" height="260"></canvas>
+  <div class="legend"><i style="background:var(--accent)"></i>回波功率 P<sub>r</sub>(R) <i style="background:var(--warn)"></i>接收灵敏度（噪声底 + NF + 所需 SNR=13dB）　横轴：距离（对数）</div>
+  <div class="readout" id="req_out"></div>
+</div>
+
+<h2>七、CFAR 检测与角度估计理论</h2>
+<div class="cards">
+  <div class="card" style="grid-column:1/-1">
+    <h3>1. 从"频谱图"到"目标列表"：为什么需要 CFAR</h3>
+    做完 2D-FFT 得到的只是<b>热力图</b>，雷达输出给整车的必须是一份干净的目标清单。直接设固定门限的问题：噪声功率随距离、温度、干扰起伏——门限高了漏警、低了满屏虚警。CFAR（恒虚警率检测）让<b>门限跟着局部噪声走</b>，把虚警率钉死在设定值（如 10⁻⁶，即百万个单元最多 1 次误报）。
+  </div>
+  <div class="card">
+    <h3>2. CA-CFAR（单元平均）原理</h3>
+    对每个待测单元（CUT），取两侧各若干个<b>训练单元</b>的平均功率估计本地噪声，中间留<b>保护单元</b>防止目标能量泄漏进估计：<br>
+    <span class="formula">门限 T = α × 训练单元均值</span><br>
+    <span class="formula">α = N·(P<sub>fa</sub><sup>−1/N</sup> − 1)（N=训练单元数）</span>
+  </div>
+  <div class="card">
+    <h3>3. CFAR 家族</h3>
+    <b>CA</b>（均值）：均匀噪声里最优，但多目标互相遮蔽；<b>GO</b>（取大）：抗遮蔽；<b>SO</b>（取小）：杂波边缘不虚警；<b>OS</b>（有序统计）：取排序后第 k 个，综合性能最好，车载雷达常用 OS-CFAR。
+  </div>
+  <div class="card">
+    <h3>4. 角度估计原理</h3>
+    平面波到达间距 d 的相邻天线，波程差 d·sinθ 产生相位差：<br>
+    <span class="formula">Δφ = 2π·d·sinθ / λ</span><br>
+    对各天线接收的复信号做<b>空间 FFT</b>（也叫数字波束形成 DBF），谱峰位置即 sinθ。仿真⑥可验证。
+  </div>
+  <div class="card">
+    <h3>5. 角分辨率与孔径</h3>
+    <span class="formula">Δθ ≈ λ / (M·d)（弧度）</span><br>
+    M 个天线、半波长间距：4 通道约 28°，16 通道约 7°。所以车载雷达用 <b>MIMO 虚拟阵列</b>（如 3 发 4 收虚拟出 12 通道）扩大孔径。
+  </div>
+  <div class="card">
+    <h3>6. 完整处理链总结</h3>
+    ADC 数据 → 距离 FFT → 多普勒 FFT → <b>CFAR 检测</b>（拿到目标点）→ 对每个检测点做<b>角度 FFT</b>（拿到方位）→ 聚类/跟踪（Kalman）→ 输出目标列表：距离、速度、角度、强度。
+  </div>
+</div>
+
+<h2>八、仿真 ⑤：CA-CFAR 恒虚警检测</h2>
+<div class="sim">
+  <div class="desc">一条含噪距离谱（有两个目标 + 一片杂波区抬高噪声底）。粉色曲线是 CA-CFAR 自适应门限——杂波区门限自动抬高，保持虚警率恒定。绿圈=检出的目标。对比试试：调训练单元数 N 或 P<sub>fa</sub>，观察门限平滑度与高度的变化。</div>
+  <div class="controls">
+    <div class="ctrl"><label>训练单元数 N（两侧合计） <span id="v_cfarN">16</span></label>
+      <input type="range" id="cfar_N" min="4" max="32" step="2" value="16"></div>
+    <div class="ctrl"><label>保护单元数（每侧） <span id="v_cfarG">3</span></label>
+      <input type="range" id="cfar_G" min="0" max="8" value="3"></div>
+    <div class="ctrl"><label>虚警率 P<sub>fa</sub> <span id="v_cfarPfa">10⁻⁴</span></label>
+      <input type="range" id="cfar_pfa" min="2" max="6" step="1" value="4"></div>
+    <button class="ghost" id="cfar_re">🔄 重新生成噪声</button>
+  </div>
+  <canvas id="cv_cfar" height="260"></canvas>
+  <div class="legend"><i style="background:var(--accent)"></i>距离谱（dB） <i style="background:var(--accent2)"></i>CFAR 自适应门限 <i style="background:var(--accent3)"></i>● 检出目标　杂波区：150~200 m</div>
+  <div class="readout" id="cfar_out"></div>
+</div>
+
+<h2>九、仿真 ⑥：阵列角度估计（空间 FFT）</h2>
+<div class="sim">
+  <div class="desc">M 个半波间距的接收天线同时收到目标回波，对天线维做 FFT 得到角度谱。调目标角度 θ、天线数 M 观察谱峰移动与宽度变化；开启第二个目标并让它们靠近，体会角分辨率极限 Δθ≈λ/(M·d)。</div>
+  <div class="controls">
+    <div class="ctrl"><label>天线数 M <span id="v_angM">8</span></label>
+      <input type="range" id="ang_M" min="2" max="16" step="2" value="8"></div>
+    <div class="ctrl"><label>目标1 角度 <span id="v_angT1">20°</span></label>
+      <input type="range" id="ang_t1" min="-60" max="60" value="20"></div>
+    <div class="ctrl"><label>目标2 角度（99=关闭） <span id="v_angT2">35°</span></label>
+      <input type="range" id="ang_t2" min="-60" max="99" value="35"></div>
+    <div class="ctrl"><label>噪声 <span id="v_angN">0.15</span></label>
+      <input type="range" id="ang_n" min="0" max="0.8" step="0.05" value="0.15"></div>
+  </div>
+  <div class="canvas-pair">
+    <div><canvas id="cv_phase" height="240"></canvas>
+      <div class="legend"><i style="background:var(--accent)"></i>各天线接收信号的相位（相位差 Δφ 随角度线性变化）</div></div>
+    <div><canvas id="cv_ang" height="240"></canvas>
+      <div class="legend"><i style="background:var(--accent3)"></i>角度谱（空间 FFT） <i style="background:var(--accent2)"></i>真实角度（虚线）</div></div>
+  </div>
+  <div class="readout" id="ang_out"></div>
+</div>
+
+</div>
+<footer>rftools · 毫米波雷达基础 · 纯本地单文件，无外部依赖</footer>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const C = 3e8;
+
+/* ============ FFT ============ */
+function fft(re, im){
+  const n = re.length;
+  for(let i=1,j=0;i<n;i++){
+    let bit=n>>1;
+    for(;j&bit;bit>>=1) j^=bit;
+    j^=bit;
+    if(i<j){ let t=re[i];re[i]=re[j];re[j]=t; t=im[i];im[i]=im[j];im[j]=t; }
+  }
+  for(let len=2;len<=n;len<<=1){
+    const ang=-2*Math.PI/len, wr=Math.cos(ang), wi=Math.sin(ang);
+    for(let i=0;i<n;i+=len){
+      let cwr=1, cwi=0;
+      for(let j=0;j<len/2;j++){
+        const ur=re[i+j], ui=im[i+j];
+        const vr=re[i+j+len/2]*cwr-im[i+j+len/2]*cwi;
+        const vi=re[i+j+len/2]*cwi+im[i+j+len/2]*cwr;
+        re[i+j]=ur+vr; im[i+j]=ui+vi;
+        re[i+j+len/2]=ur-vr; im[i+j+len/2]=ui-vi;
+        const t=cwr*wr-cwi*wi; cwi=cwr*wi+cwi*wr; cwr=t;
+      }
+    }
+  }
+}
+/* ============ Canvas 工具 ============ */
+function setupCanvas(id){
+  const cv = $(id);
+  const dpr = window.devicePixelRatio||1;
+  const w = cv.clientWidth, h = cv.height;
+  cv.width=w*dpr; cv.height=h*dpr;
+  const ctx = cv.getContext("2d");
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  return {ctx,w,h};
+}
+function drawGrid(ctx,w,h,xLabel,yLabel){
+  ctx.clearRect(0,0,w,h);
+  ctx.strokeStyle="#22304a"; ctx.lineWidth=1; ctx.beginPath();
+  for(let i=1;i<10;i++){ ctx.moveTo(w*i/10,0); ctx.lineTo(w*i/10,h); }
+  for(let i=1;i<5;i++){ ctx.moveTo(0,h*i/5); ctx.lineTo(w,h*i/5); }
+  ctx.stroke();
+  ctx.fillStyle="#64748b"; ctx.font="11px Consolas";
+  if(xLabel) ctx.fillText(xLabel, w-ctx.measureText(xLabel).width-6, h-6);
+  if(yLabel) ctx.fillText(yLabel, 6, 14);
+}
+function plotXY(ctx,xs,ys,xa,xb,ya,yb,w,h,color,lw){
+  ctx.strokeStyle=color; ctx.lineWidth=lw||1.5; ctx.beginPath();
+  let started=false;
+  for(let i=0;i<xs.length;i++){
+    const X=(xs[i]-xa)/(xb-xa)*w, Y=h-(ys[i]-ya)/(yb-ya)*h;
+    if(X<0||X>w||!isFinite(ys[i])){ started=false; continue; }
+    if(!started){ ctx.moveTo(X,Y); started=true; } else ctx.lineTo(X,Y);
+  }
+  ctx.stroke();
+}
+
+/* ============ 仿真①：Chirp 时频图 ============ */
+function updateChirp(){
+  const B=+$("B").value*1e6, Tc=+$("Tc").value*1e-6, R=+$("R1").value;
+  $("v_B").textContent=(+$("B").value/1000).toFixed(1)+" GHz";
+  $("v_Tc").textContent=$("Tc").value+" µs";
+  $("v_R1").textContent=R+" m";
+  const S=B/Tc, tau=2*R/C, fb=S*tau;
+  const dR=C/(2*B), Rmax=10e6*C/(4*S); // 按 fs=10MHz 估算
+
+  const M=400, xs=[], tx=[], rx=[], bt=[];
+  const Tshow=Tc*1.6;
+  for(let i=0;i<M;i++){
+    const t=Tshow*i/(M-1);
+    xs.push(t*1e6);
+    const tc=t%Tc;
+    tx.push(S*tc/1e9);
+    rx.push(t>tau ? S*((t-tau)%Tc)/1e9 : NaN);
+    // 拍频（有效区）
+    if(t>tau && t<Tc) bt.push(S*tau/1e6);
+    else bt.push(NaN);
+  }
+  const c1=setupCanvas("cv_chirp");
+  drawGrid(c1.ctx,c1.w,c1.h,"时间 µs","频率 GHz");
+  plotXY(c1.ctx,xs,tx,0,Tshow*1e6,0,B*1.25/1e9,c1.w,c1.h,"#38bdf8",2);
+  plotXY(c1.ctx,xs,rx,0,Tshow*1e6,0,B*1.25/1e9,c1.w,c1.h,"#f472b6",2);
+
+  const c2=setupCanvas("cv_beat");
+  drawGrid(c2.ctx,c2.w,c2.h,"时间 µs","拍频 MHz");
+  const yb=Math.max(fb/1e6*2.2, 5);
+  plotXY(c2.ctx,xs,bt,0,Tshow*1e6,0,yb,c2.w,c2.h,"#a3e635",2.5);
+  c2.ctx.fillStyle="#a3e635"; c2.ctx.font="12px Consolas";
+  c2.ctx.fillText("f_b = "+(fb/1e6).toFixed(2)+" MHz", 10, 30);
+
+  $("chirp_out").textContent =
+    "斜率 S="+(S/1e12).toFixed(1)+" MHz/µs · 延迟 τ="+(tau*1e9).toFixed(1)+" ns · 拍频 fb=S·τ="+(fb/1e6).toFixed(2)+
+    " MHz · 反算 R=c·fb/(2S)="+(C*fb/(2*S)).toFixed(1)+" m ✓ · ΔR=c/2B="+(dR*100).toFixed(1)+" cm";
+}
+["B","Tc","R1"].forEach(id=>$(id).addEventListener("input",updateChirp));
+
+/* ============ 仿真②：FFT 测距 ============ */
+function updateRange(){
+  const r1=+$("t1").value, r2=+$("t2").value, nz=+$("nz").value;
+  $("v_t1").textContent=r1+" m";
+  $("v_t2").textContent=r2>0?r2+" m":"关闭";
+  $("v_nz").textContent=nz.toFixed(2);
+  // 固定雷达参数
+  const B=1e9, Tc=50e-6, S=B/Tc, fs=10e6, N=256; // N/fs=25.6µs < Tc
+  const dR=C/(2*B), Rmax=fs*C/(4*S);
+
+  const re=new Float64Array(N), im=new Float64Array(N);
+  const targets=[{r:r1,a:1}];
+  if(r2>0) targets.push({r:r2,a:0.8});
+  for(let n=0;n<N;n++){
+    const t=n/fs;
+    let v=0;
+    for(const g of targets){
+      const fb=S*2*g.r/C;
+      v+=g.a*Math.cos(2*Math.PI*fb*t);
+    }
+    re[n]=v+nz*(Math.random()*2-1);
+  }
+  const td=setupCanvas("cv_if");
+  drawGrid(td.ctx,td.w,td.h,"时间 µs（25.6 µs 采样窗）","幅度");
+  const tx=[],ty=[];
+  for(let n=0;n<N;n++){ tx.push(n/fs*1e6); ty.push(re[n]); }
+  const ymax=1.2*(targets.reduce((s,g)=>s+g.a,0)+nz);
+  plotXY(td.ctx,tx,ty,0,N/fs*1e6,-ymax,ymax,td.w,td.h,"#38bdf8",1.2);
+
+  fft(re,im);
+  const half=N/2;
+  const bin2R = k => k*fs/N*C/(2*S);
+  const xs=[],ys=[];
+  let pk1={k:0,v:-1e9}, pk2={k:0,v:-1e9};
+  for(let k=1;k<half;k++){
+    const m=Math.sqrt(re[k]*re[k]+im[k]*im[k])/N*2;
+    xs.push(bin2R(k)); ys.push(m);
+    if(m>pk1.v){ pk2=pk1; pk1={k,v:m}; }
+    else if(Math.abs(k-pk1.k)>4 && m>pk2.v){ pk2={k,v:m}; }
+  }
+  const sp=setupCanvas("cv_rfft");
+  drawGrid(sp.ctx,sp.w,sp.h,"距离 m（Rmax="+Rmax.toFixed(0)+" m）","幅度");
+  plotXY(sp.ctx,xs,ys,0,bin2R(half-1),0,1.4,sp.w,sp.h,"#a3e635",1.4);
+  // 标注真实距离
+  sp.ctx.strokeStyle="rgba(244,114,182,.6)"; sp.ctx.setLineDash([4,4]);
+  for(const g of targets){
+    const X=g.r/bin2R(half-1)*sp.w;
+    sp.ctx.beginPath(); sp.ctx.moveTo(X,0); sp.ctx.lineTo(X,sp.h); sp.ctx.stroke();
+  }
+  sp.ctx.setLineDash([]);
+
+  $("range_out").innerHTML =
+    "检测到谱峰：R₁ ≈ <b>"+bin2R(pk1.k).toFixed(1)+" m</b>（真实 "+r1+" m）"+
+    (r2>0 ? "，R₂ ≈ <b>"+bin2R(pk2.k).toFixed(1)+" m</b>（真实 "+r2+" m）" : "")+
+    " ｜ ΔR="+(dR*100).toFixed(0)+" cm，谱线间隔对应 "+bin2R(1).toFixed(2)+" m（虚线=真实位置）";
+}
+["t1","t2","nz"].forEach(id=>$(id).addEventListener("input",updateRange));
+
+/* ============ 仿真③：距离-多普勒 ============ */
+function updateRD(){
+  const tg=[{r:+$("rA").value, v:+$("vA").value},
+            {r:+$("rB").value, v:+$("vB").value}];
+  $("v_rA").textContent=tg[0].r+" m"; $("v_vA").textContent=tg[0].v+" m/s";
+  $("v_rB").textContent=tg[1].r+" m"; $("v_vB").textContent=tg[1].v+" m/s";
+
+  // 雷达参数（77GHz）
+  const f0=77e9, lam=C/f0, B=500e6, Tc=60e-6, S=B/Tc;
+  const fs=8e6, N=128, M=64; // 快时间128点，慢时间64 chirp
+  const dR=C/(2*B), Rmax=fs*C/(4*S);
+  const dv=lam/(2*M*Tc), vmax=lam/(4*Tc);
+
+  // 生成 2D 数据并做 2D-FFT
+  const mag=[];
+  for(let m=0;m<M;m++){
+    const re=new Float64Array(N), im=new Float64Array(N);
+    for(let n=0;n<N;n++){
+      const t=n/fs;
+      let ph=0;
+      for(const g of tg){
+        const fb=S*2*g.r/C, fd=2*g.v/lam;
+        ph+=Math.cos(2*Math.PI*(fb*t+fd*(m*Tc+t)));
+      }
+      re[n]=ph+0.15*(Math.random()*2-1);
+    }
+    // 加窗压泄漏
+    let ws=0; const wv=new Float64Array(N);
+    for(let n=0;n<N;n++){ wv[n]=0.5*(1-Math.cos(2*Math.PI*n/(N-1))); ws+=wv[n]; re[n]*=wv[n]; }
+    fft(re,im);
+    const row=new Float64Array(N/2);
+    for(let k=0;k<N/2;k++) row[k]=Math.sqrt(re[k]*re[k]+im[k]*im[k]);
+    mag.push(row);
+  }
+  // 慢时间 FFT
+  const RD=[];
+  for(let k=0;k<N/2;k++){
+    const re=new Float64Array(M), im=new Float64Array(M);
+    let ws=0;
+    for(let m=0;m<M;m++){ const w=0.5*(1-Math.cos(2*Math.PI*m/(M-1))); re[m]=mag[m][k]*w; ws+=w; }
+    fft(re,im);
+    const row=new Float64Array(M);
+    for(let d=0;d<M;d++){
+      const idx=(d+M/2)%M; // fftshift
+      row[idx]=Math.sqrt(re[d]*re[d]+im[d]*im[d])/ws;
+    }
+    RD.push(row);
+  }
+  // 绘制热力图
+  const {ctx,w,h}=setupCanvas("cv_rd");
+  ctx.clearRect(0,0,w,h);
+  let maxv=0;
+  for(const row of RD) for(const v of row) if(v>maxv) maxv=v;
+  const cw=w/M, ch=h/(N/2);
+  const img=ctx.createImageData(M,N/2);
+  for(let k=0;k<N/2;k++){
+    for(let d=0;d<M;d++){
+      const db=20*Math.log10(RD[k][d]/maxv+1e-6);
+      const t=Math.max(0,Math.min(1,(db+45)/45)); // -45dB~0dB
+      // 色带：深蓝→青→黄
+      let r,g,b;
+      if(t<0.5){ const u=t*2; r=10+u*10; g=30+u*180; b=80+u*120; }
+      else { const u=(t-0.5)*2; r=20+u*235; g=210+u*45; b=200-u*180; }
+      const p=((N/2-1-k)*M+d)*4; // 纵轴翻转：近在下
+      img.data[p]=r; img.data[p+1]=g; img.data[p+2]=b; img.data[p+3]=255;
+    }
+  }
+  // 用临时 canvas 放大
+  const tmp=document.createElement("canvas");
+  tmp.width=M; tmp.height=N/2;
+  tmp.getContext("2d").putImageData(img,0,0);
+  ctx.imageSmoothingEnabled=false;
+  ctx.drawImage(tmp,0,0,w,h);
+  // 坐标刻度
+  ctx.fillStyle="#e2e8f0"; ctx.font="11px Consolas";
+  ctx.fillText((-vmax).toFixed(0),4,h-6);
+  ctx.fillText("+"+vmax.toFixed(0)+" m/s",w-58,h-6);
+  ctx.fillText("0",w/2-3,h-6);
+  ctx.fillText("0 m",4,h-14);
+  ctx.fillText(Rmax.toFixed(0)+" m",4,14);
+  // 目标真值十字
+  for(const g of tg){
+    const X=(g.v/vmax*0.5+0.5)*w, Y=h-g.r/Rmax*h;
+    ctx.strokeStyle="#fff"; ctx.beginPath();
+    ctx.moveTo(X-7,Y); ctx.lineTo(X+7,Y); ctx.moveTo(X,Y-7); ctx.lineTo(X,Y+7); ctx.stroke();
+  }
+  $("rd_out").textContent =
+    "ΔR="+dR.toFixed(2)+" m · Rmax="+Rmax.toFixed(0)+" m · Δv="+dv.toFixed(2)+" m/s · vmax=±"+vmax.toFixed(1)+
+    " m/s · 白色十字=目标真值（A: "+tg[0].r+"m/"+tg[0].v+"m/s，B: "+tg[1].r+"m/"+tg[1].v+"m/s）";
+}
+["rA","vA","rB","vB"].forEach(id=>$(id).addEventListener("input",updateRD));
+
+/* ============ 仿真④：雷达方程 ============ */
+function updateREQ(){
+  const Pt=+$("pt").value, Gt=+$("gt").value, NF=+$("nf").value;
+  const sigma=Math.pow(10, +$("rcs").value);
+  $("v_pt").textContent=Pt+" dBm";
+  $("v_gt").textContent=Gt+" dBi";
+  const rcsName = sigma>5?"（轿车）":sigma>1.5?"（自行车）":sigma>0.5?"（行人）":sigma>0.01?"（无人机）":"（隐身目标）";
+  $("v_rcs").textContent=sigma.toFixed(2)+" m² "+rcsName;
+  $("v_nf").textContent=NF+" dB";
+  const lam=C/77e9;
+  // 灵敏度：-174dBm/Hz + 10lgB + NF + SNRreq；取中频带宽 5MHz，SNRreq=13dB
+  const Bif=5e6, snrReq=13;
+  const sens=-174+10*Math.log10(Bif)+NF+snrReq;
+  const pr = R => Pt+2*Gt+20*Math.log10(lam)+10*Math.log10(sigma)-30*Math.log10(4*Math.PI)-40*Math.log10(R);
+  const cv=setupCanvas("cv_req");
+  drawGrid(cv.ctx,cv.w,cv.h,"距离 R（对数刻度）","功率 dBm");
+  const lgR0=0, lgR1=Math.log10(300); // 1m~300m
+  const xs=[],ys=[];
+  for(let i=0;i<=300;i++){
+    const lr=lgR0+(lgR1-lgR0)*i/300, R=Math.pow(10,lr);
+    xs.push(lr); ys.push(pr(R));
+  }
+  const dbmin=-160, dbmax=Math.max(Pt+2*Gt-40,-40);
+  plotXY(cv.ctx,xs,ys,lgR0,lgR1,dbmin,dbmax,cv.w,cv.h,"#38bdf8",2);
+  // 灵敏度线
+  const Ys=cv.h-(sens-dbmin)/(dbmax-dbmin)*cv.h;
+  cv.ctx.strokeStyle="#fbbf24"; cv.ctx.setLineDash([6,4]); cv.ctx.lineWidth=2;
+  cv.ctx.beginPath(); cv.ctx.moveTo(0,Ys); cv.ctx.lineTo(cv.w,Ys); cv.ctx.stroke(); cv.ctx.setLineDash([]);
+  cv.ctx.fillStyle="#fbbf24"; cv.ctx.font="11px Consolas";
+  cv.ctx.fillText("灵敏度 "+sens.toFixed(0)+" dBm", 8, Ys-6);
+  // 刻度
+  cv.ctx.fillStyle="#64748b";
+  for(const R of [1,3,10,30,100,300]){
+    const X=(Math.log10(R)-lgR0)/(lgR1-lgR0)*cv.w;
+    cv.ctx.fillText(R+"m", X-8, cv.h-18);
+  }
+  // 最大检测距离（解析求交点）
+  const lgR=(Pt+2*Gt+20*Math.log10(lam)+10*Math.log10(sigma)-30*Math.log10(4*Math.PI)-sens)/40;
+  const Rmax=Math.pow(10,lgR);
+  const Xm=(lgR-lgR0)/(lgR1-lgR0)*cv.w;
+  if(Xm>0&&Xm<cv.w){
+    cv.ctx.strokeStyle="#a3e635"; cv.ctx.setLineDash([4,4]);
+    cv.ctx.beginPath(); cv.ctx.moveTo(Xm,0); cv.ctx.lineTo(Xm,cv.h); cv.ctx.stroke(); cv.ctx.setLineDash([]);
+  }
+  $("req_out").textContent =
+    "最大检测距离 ≈ "+(Rmax>300?">300":Rmax.toFixed(1))+" m（灵敏度 "+sens.toFixed(0)+" dBm）· 验证 R⁴ 律：距离×2 → 回波 −12 dB；发射功率 +3dB 仅换来检测距离 ×1.19";
+}
+["pt","gt","rcs","nf"].forEach(id=>$(id).addEventListener("input",updateREQ));
+
+/* ============ 仿真⑤：CA-CFAR ============ */
+let cfarSeed=1;
+function cfarNoiseProfile(){
+  // 生成 256 单元距离谱：指数分布噪声功率 + 杂波区(150~200m) + 两个目标
+  const N=256, P=new Float64Array(N);
+  let s=cfarSeed*9301+49297;
+  const rnd=()=>{ s=(s*233280+9301)%2147483647; return (s%100000)/100000+1e-6; };
+  for(let k=0;k<N;k++){
+    const R=k*300/N;
+    const mu=(R>=150&&R<=200)?8:1;   // 杂波区噪声底抬高 ~9dB
+    P[k]=-Math.log(rnd())*mu;        // 指数分布（复高斯噪声的功率）
+  }
+  const t1=Math.round(80/300*N), t2=Math.round(175/300*N);
+  P[t1]+=120; P[t2]+=100;            // 目标：~21dB / 杂波区内 ~11dB 目标
+  P[t1+1]+=15; P[t2-1]+=12;
+  return {P, t1, t2};
+}
+function updateCFAR(){
+  const NT=+$("cfar_N").value, NG=+$("cfar_G").value, pfa=Math.pow(10,-(+$("cfar_pfa").value));
+  $("v_cfarN").textContent=NT;
+  $("v_cfarG").textContent=NG;
+  $("v_cfarPfa").textContent="10⁻"+$("cfar_pfa").value;
+  const alpha=NT*(Math.pow(pfa,-1/NT)-1);
+  const {P,t1,t2}=cfarNoiseProfile();
+  const N=P.length, dB=k=>10*Math.log10(P[k]);
+  // CA-CFAR 门限
+  const T=new Float64Array(N).fill(NaN);
+  const det=[];
+  for(let i=NG+NT/2;i<N-NG-NT/2;i++){
+    let sum=0;
+    for(let j=1;j<=NT/2;j++){ sum+=P[i-NG-j]+P[i+NG+j]; }
+    const thr=alpha*sum/NT;
+    T[i]=10*Math.log10(thr);
+    if(P[i]>thr) det.push(i);
+  }
+  const cv=setupCanvas("cv_cfar");
+  drawGrid(cv.ctx,cv.w,cv.h,"距离 m","功率 dB");
+  const xs=[], ys=[], ts=[];
+  for(let k=0;k<N;k++){ xs.push(k*300/N); ys.push(dB(k)); ts.push(isNaN(T[k])?NaN:T[k]); }
+  plotXY(cv.ctx,xs,ys,0,300,-5,32,cv.w,cv.h,"#38bdf8",1.2);
+  plotXY(cv.ctx,xs,ts,0,300,-5,32,cv.w,cv.h,"#f472b6",2);
+  // 检出点
+  cv.ctx.fillStyle="#a3e635";
+  const hits=[];
+  for(const i of det){
+    const R=i*300/N, X=R/300*cv.w, Y=cv.h-(dB(i)+5)/37*cv.h;
+    cv.ctx.beginPath(); cv.ctx.arc(X,Y,4,0,7); cv.ctx.fill();
+    hits.push(R.toFixed(0));
+  }
+  const fa=det.filter(i=>Math.abs(i-t1)>2&&Math.abs(i-t2)>2).length;
+  const found1=det.some(i=>Math.abs(i-t1)<=2), found2=det.some(i=>Math.abs(i-t2)<=2);
+  $("cfar_out").textContent =
+    "α = "+alpha.toFixed(1)+"（N="+NT+"，Pfa=10⁻"+$("cfar_pfa").value+"）· 检出："+
+    (hits.length?hits.join(", "):"无")+" m ｜ 目标80m:"+(found1?"✓":"✗")+" 杂波区内175m:"+(found2?"✓":"✗")+
+    " ｜ 虚警 "+fa+" 次（期望≈"+(pfa*N).toFixed(2)+"）";
+}
+["cfar_N","cfar_G","cfar_pfa"].forEach(id=>$(id).addEventListener("input",updateCFAR));
+$("cfar_re").addEventListener("click",()=>{ cfarSeed=Math.floor(Math.random()*100)+1; updateCFAR(); });
+
+/* ============ 仿真⑥：角度估计 ============ */
+function updateAng(){
+  const M=+$("ang_M").value, t1=+$("ang_t1").value, t2raw=+$("ang_t2").value, nz=+$("ang_n").value;
+  $("v_angM").textContent=M;
+  $("v_angT1").textContent=t1+"°";
+  const t2on=t2raw<=60;
+  $("v_angT2").textContent=t2on?t2raw+"°":"关闭";
+  $("v_angN").textContent=nz.toFixed(2);
+  const d=0.5; // λ/2 间距（λ 归一化）
+  const tg=[{th:t1*Math.PI/180, a:1}];
+  if(t2on) tg.push({th:t2raw*Math.PI/180, a:0.85});
+  // 阵列快拍
+  const re=new Float64Array(M), im=new Float64Array(M);
+  const phs=[];
+  for(let m=0;m<M;m++){
+    let r=0, ii=0;
+    for(const g of tg){
+      const ph=Math.PI*m*Math.sin(g.th)*d*2; // 2π·d·sinθ/λ, d=λ/2 → π·m·sinθ
+      r+=g.a*Math.cos(ph); ii+=g.a*Math.sin(ph);
+    }
+    re[m]=r+nz*(Math.random()*2-1); im[m]=ii+nz*(Math.random()*2-1);
+    phs.push(Math.atan2(im[m],re[m]));
+  }
+  // 相位图
+  const c1=setupCanvas("cv_phase");
+  drawGrid(c1.ctx,c1.w,c1.h,"天线序号 m","相位 rad");
+  const mx=[],my=[];
+  for(let m=0;m<M;m++){ mx.push(m); my.push(phs[m]); }
+  c1.ctx.strokeStyle="#38bdf8"; c1.ctx.lineWidth=1.5;
+  for(let m=1;m<M;m++){
+    const X0=(m-1)/(M-1)*c1.w, X1=m/(M-1)*c1.w;
+    const Y0=c1.h-(phs[m-1]+Math.PI)/(2*Math.PI)*c1.h, Y1=c1.h-(phs[m]+Math.PI)/(2*Math.PI)*c1.h;
+    c1.ctx.beginPath(); c1.ctx.moveTo(X0,Y0); c1.ctx.lineTo(X1,Y1); c1.ctx.stroke();
+  }
+  c1.ctx.fillStyle="#38bdf8";
+  for(let m=0;m<M;m++){
+    const X=m/(M-1)*c1.w, Y=c1.h-(phs[m]+Math.PI)/(2*Math.PI)*c1.h;
+    c1.ctx.beginPath(); c1.ctx.arc(X,Y,4,0,7); c1.ctx.fill();
+  }
+  // 空间 FFT（补零到 256）
+  const L=256, fre=new Float64Array(L), fim=new Float64Array(L);
+  for(let m=0;m<M;m++){ fre[m]=re[m]; fim[m]=im[m]; }
+  fft(fre,fim);
+  const xs2=[],ys2=[];
+  let pk={v:-1e9,s:0};
+  for(let k=0;k<L;k++){
+    const u=(k<L/2?k:k-L)/L/d; // u=sinθ，d=0.5 → u∈[-1,1]
+    if(Math.abs(u)>1) continue;
+    const th=Math.asin(Math.max(-1,Math.min(1,u)))*180/Math.PI;
+    const pw=Math.sqrt(fre[k]*fre[k]+fim[k]*fim[k]);
+    xs2.push(th); ys2.push(pw);
+    if(pw>pk.v) pk={v:pw,s:th};
+  }
+  // 按角度排序后绘制
+  const pairs=xs2.map((x,i)=>[x,ys2[i]]).sort((a,b)=>a[0]-b[0]);
+  const c2=setupCanvas("cv_ang");
+  drawGrid(c2.ctx,c2.w,c2.h,"角度 °","幅度");
+  plotXY(c2.ctx,pairs.map(p=>p[0]),pairs.map(p=>p[1]),-90,90,0,Math.max(...ys2)*1.15,c2.w,c2.h,"#a3e635",1.6);
+  c2.ctx.strokeStyle="rgba(244,114,182,.7)"; c2.ctx.setLineDash([4,4]);
+  for(const g of tg){
+    const X=(g.th*180/Math.PI+90)/180*c2.w;
+    c2.ctx.beginPath(); c2.ctx.moveTo(X,0); c2.ctx.lineTo(X,c2.h); c2.ctx.stroke();
+  }
+  c2.ctx.setLineDash([]);
+  const res=180/Math.PI/(M*d); // Δθ≈λ/(M·d) 弧度→度
+  const sep=t2on?Math.abs(t2raw-t1):Infinity;
+  $("ang_out").textContent =
+    "估计角度 ≈ "+pk.s.toFixed(1)+"°（真实 "+t1+"°）｜ 角分辨率 Δθ≈λ/(M·d)="+res.toFixed(1)+"°（M="+M+", d=λ/2）"+
+    (t2on?"｜ 两目标相距 "+sep.toFixed(0)+"°："+(sep>res*0.9?"可分辨 ✓":"接近/低于分辨率，谱峰合并 ⚠"):"");
+}
+["ang_M","ang_t1","ang_t2","ang_n"].forEach(id=>$(id).addEventListener("input",updateAng));
+
+updateChirp();
+updateRange();
+updateRD();
+updateREQ();
+updateCFAR();
+updateAng();
+window.addEventListener("resize",()=>{ updateChirp(); updateRange(); updateRD(); updateREQ(); updateCFAR(); updateAng(); });
+</script>
+</body>
+</html>

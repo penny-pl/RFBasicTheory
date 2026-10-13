@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SDR 基础 — I/Q · 调制解调 · 频谱搬移</title>
+<style>
+:root{
+  --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --border:#2d3748;
+  --text:#e2e8f0; --dim:#94a3b8; --accent:#38bdf8; --accent2:#f472b6;
+  --accent3:#a3e635; --warn:#fbbf24;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;line-height:1.7;padding:0 0 60px}
+header{background:linear-gradient(135deg,#1a2e22,#16213e);border-bottom:1px solid var(--border);padding:28px 24px}
+header h1{font-size:26px;color:var(--accent)}
+header p{color:var(--dim);margin-top:6px;font-size:14px}
+.back{display:inline-block;margin-bottom:10px;color:var(--dim);text-decoration:none;font-size:13px}
+.back:hover{color:var(--accent)}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+h2{font-size:20px;color:var(--accent);margin:38px 0 14px;padding-left:12px;border-left:4px solid var(--accent)}
+h3{font-size:16px;color:var(--accent2);margin:0 0 8px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px 18px;font-size:14px}
+.card b{color:var(--accent3)}
+.formula{display:inline-block;background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:2px 10px;margin:4px 0;font-family:Consolas,monospace;color:var(--warn);font-size:14px}
+.sim{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px;margin-top:16px}
+.sim .desc{color:var(--dim);font-size:13px;margin-bottom:12px}
+.controls{display:flex;flex-wrap:wrap;gap:16px 26px;margin-bottom:14px}
+.ctrl{display:flex;flex-direction:column;font-size:13px;color:var(--dim);min-width:170px}
+.ctrl label{display:flex;justify-content:space-between;margin-bottom:4px}
+.ctrl label span{color:var(--accent);font-family:Consolas,monospace}
+input[type=range]{width:190px;accent-color:var(--accent)}
+select{background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:13px}
+canvas{display:block;width:100%;background:#0a0e14;border:1px solid var(--border);border-radius:8px}
+.canvas-pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:760px){.canvas-pair{grid-template-columns:1fr}}
+.readout{font-family:Consolas,monospace;font-size:14px;color:var(--accent3);background:var(--panel2);border-radius:6px;padding:8px 14px;margin-top:10px;display:inline-block}
+.legend{font-size:12px;color:var(--dim);margin-top:6px}
+.legend i{display:inline-block;width:18px;height:3px;vertical-align:middle;margin:0 6px 2px 12px;border-radius:2px}
+.arch{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:10px 0;font-size:13px}
+.arch .blk{background:var(--panel2);border:1px solid var(--accent);border-radius:8px;padding:8px 12px;text-align:center}
+.arch .blk small{display:block;color:var(--dim);font-size:11px}
+.arch .arr{color:var(--accent);font-weight:bold}
+footer{text-align:center;color:#475569;font-size:12px;margin-top:50px}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="back" href="../index.html">← 返回工具首页</a>
+    <h1>SDR 基础（软件无线电）</h1>
+    <p>I/Q 正交信号 · 星座图 · AM/FM 调制 · 混频与频谱搬移 · 瀑布图 —— 全部仿真在浏览器本地运行</p>
+  </div>
+</header>
+<div class="wrap">
+
+<h2>一、SDR 是什么？</h2>
+<div class="card">
+  <b>软件定义无线电（Software Defined Radio）</b>：把滤波、混频、调制解调这些传统上用专用硬件完成的工作，尽量交给<b>软件</b>来做。硬件只负责"搬移到合适频率 + 数字化"，其余全由程序决定——同一台设备换个程序就能听 FM 广播、收 ADS-B 飞机信号、解码气象卫星。
+  <div class="arch">
+    <div class="blk">天线<small>接收电磁波</small></div><span class="arr">→</span>
+    <div class="blk">LNA<small>低噪声放大</small></div><span class="arr">→</span>
+    <div class="blk">混频器<small>RF 搬到中频/基带</small></div><span class="arr">→</span>
+    <div class="blk">ADC<small>模数转换 I/Q</small></div><span class="arr">→</span>
+    <div class="blk">软件处理<small>解调/解码/显示</small></div>
+  </div>
+  常见设备：RTL-SDR（几十元的电视棒）、HackRF、USRP、ADALM-Pluto。
+</div>
+
+<h2>二、核心理论速览</h2>
+<div class="cards">
+  <div class="card">
+    <h3>1. 为什么用 I/Q 两路？</h3>
+    单路实信号采样无法区分 +f 和 −f（频谱镜像）。用相位差 90° 的两路本振分别混频，得到同相 I 与正交 Q：<br>
+    <span class="formula">x(t) = I(t) + j·Q(t)</span><br>
+    复信号完整保留了幅度和相位信息，<b>I/Q 是 SDR 的数据母语</b>。
+  </div>
+  <div class="card">
+    <h3>2. 采样率与带宽</h3>
+    复数采样时，可用带宽 = 采样率 f<sub>s</sub>（不是 f<sub>s</sub>/2！因为复信号无镜像）。RTL-SDR 常用 2.4 MS/s，即一次能观察 2.4 MHz 宽的频谱。
+  </div>
+  <div class="card">
+    <h3>3. 调制：把信息"骑"在载波上</h3>
+    <b>AM</b>：信息改变载波幅度；<b>FM</b>：信息改变载波频率；<b>PM</b>：改变相位。数字调制则把比特映射为离散的幅度/相位状态（星座点），如 BPSK、QPSK、16QAM。
+  </div>
+  <div class="card">
+    <h3>4. 星座图</h3>
+    把每个符号的 (I, Q) 画成平面上的点。噪声使点云扩散，扩散到相邻点的"地盘"就会误判。<br>
+    <span class="formula">16QAM 比 QPSK 点更密 → 速率×2，但更怕噪声</span>
+  </div>
+  <div class="card">
+    <h3>5. 混频与频谱搬移</h3>
+    两个信号相乘（混频），频率相加/相减：<br>
+    <span class="formula">cos(f₁)·cos(f₂) = ½[cos(f₁+f₂)+cos(f₁−f₂)]</span><br>
+    用本振把 RF 信号"减"到中频或基带，ADC 才跟得上——这是所有接收机的核心操作。
+  </div>
+  <div class="card">
+    <h3>6. 瀑布图（Waterfall）</h3>
+    把连续多帧 FFT 幅度谱按时间堆叠成图像，横轴频率、纵轴时间、颜色表示强度。SDR 软件的标志性界面，一眼看出"哪个频点什么时候有信号"。
+  </div>
+</div>
+
+<h2>三、SDR 关键技术理论</h2>
+<div class="cards">
+  <div class="card">
+    <h3>1. 超外差 vs 零中频</h3>
+    <b>超外差</b>：RF 先混到固定中频再数字化，镜像靠前端滤波器压制（传统收音机架构）。<b>零中频</b>（直接变频）：LO=载频，直接混到基带 I/Q，省掉中频和镜像滤波——大多数 SDR 芯片（如 AD9361、RTL2832U 后级）用它。代价：直流失调、IQ 不平衡需校准。
+  </div>
+  <div class="card">
+    <h3>2. 带通采样（欠采样）</h3>
+    奈奎斯特定理只说采样率要超过<b>带宽</b>的 2 倍，没说要超过载频！窄带信号可以用远低于载频的速率采样，频谱会周期延拓到基带：<br>
+    <span class="formula">2f<sub>H</sub>/n ≤ f<sub>s</sub> ≤ 2f<sub>L</sub>/(n−1)</span><br>
+    仿真⑤可亲手体验这种"故意的混叠"。
+  </div>
+  <div class="card">
+    <h3>3. ADC 的关键指标</h3>
+    <b>位数/ENOB</b>：有效位数决定 SNR 上限；<b>SFDR</b>：无杂散动态范围，决定强弱信号能否同时看清；<b>满量程</b>：输入过载会削波产生大量谐波。SDR 常用 8~16 位。
+  </div>
+  <div class="card">
+    <h3>4. 动态范围与 AGC</h3>
+    空中信号从 −110 dBm 到 −20 dBm 相差 90dB，远超 ADC 能力。<b>AGC</b>（自动增益控制）实时调节 LNA/可变增益放大器，把信号"安排"进 ADC 的最佳窗口——SDR 软件里的增益滑块就是它。
+  </div>
+  <div class="card">
+    <h3>5. 抽取与插值（采样率变换）</h3>
+    ADC 采得飞快（如 28.8 MS/s），解调只需几十 kHz。先用抗混叠滤波器再每 M 点取 1 点（<b>抽取</b>），数据率大幅下降；反之插值用于发射。CIC、半带 FIR 是常用的多级滤波结构。
+  </div>
+  <div class="card">
+    <h3>6. 常见设备与软件生态</h3>
+    <b>RTL-SDR</b>（¥30，收 0.5M~1.7G）、<b>HackRF</b>（收发，半双工）、<b>ADALM-Pluto</b>（教学）、<b>USRP</b>（科研）。软件：GNU Radio（图形化流图）、SDR#、GQRX。入门建议：RTL-SDR 收 FM 广播 → ADS-B 飞机信号 → 气象卫星云图。
+  </div>
+</div>
+
+<h2>四、仿真 ①：I/Q 星座图与噪声</h2>
+<div class="sim">
+  <div class="desc">随机发送数字符号并叠加高斯噪声，画出星座点云。调低 SNR 看点云扩散、临近判决边界——误码就是这么发生的。</div>
+  <div class="controls">
+    <div class="ctrl"><label>调制方式</label>
+      <select id="mod">
+        <option value="bpsk">BPSK（1 bit/符号）</option>
+        <option value="qpsk" selected>QPSK（2 bit/符号）</option>
+        <option value="qam16">16QAM（4 bit/符号）</option>
+      </select></div>
+    <div class="ctrl"><label>信噪比 SNR <span id="v_snr">20 dB</span></label>
+      <input type="range" id="snr" min="0" max="35" value="20"></div>
+  </div>
+  <canvas id="cv_const" height="340"></canvas>
+  <div class="legend">横轴 I · 纵轴 Q · 灰色十字=理想星座点，彩色点=接收到的含噪符号</div>
+  <div class="readout" id="const_out"></div>
+</div>
+
+<h2>五、仿真 ②：AM / FM 调制解调</h2>
+<div class="sim">
+  <div class="desc">基带信号（音频，绿）调制到载波上。AM 看包络变化、FM 看疏密变化；右侧频谱可见 AM 的载波+上下边带、FM 的多边带结构（卡森带宽 BW≈2(Δf+f<sub>m</sub>)）。</div>
+  <div class="controls">
+    <div class="ctrl"><label>调制方式</label>
+      <select id="modamfm"><option value="am" selected>AM 调幅</option><option value="fm">FM 调频</option></select></div>
+    <div class="ctrl"><label>基带频率 f<sub>m</sub> <span id="v_fm">5 Hz</span></label>
+      <input type="range" id="fm" min="1" max="15" value="5"></div>
+    <div class="ctrl"><label>调制深度/频偏 <span id="v_depth">0.80</span></label>
+      <input type="range" id="depth" min="0.1" max="1" step="0.05" value="0.8"></div>
+  </div>
+  <div class="canvas-pair">
+    <div><canvas id="cv_modt" height="220"></canvas>
+      <div class="legend"><i style="background:var(--accent3)"></i>基带信号 <i style="background:var(--accent)"></i>已调信号（载波 40 Hz）</div></div>
+    <div><canvas id="cv_modf" height="220"></canvas>
+      <div class="legend"><i style="background:var(--accent2)"></i>已调信号频谱（载波两侧为边带）</div></div>
+  </div>
+  <div class="readout" id="mod_out"></div>
+</div>
+
+<h2>六、仿真 ③：混频下变频（频谱搬移）</h2>
+<div class="sim">
+  <div class="desc">RF 信号与本振 LO 相乘后，频谱出现在 |f<sub>RF</sub>±f<sub>LO</sub>| 两处。用低通滤波器留下差频，就把高频信号搬到了基带。调 LO 频率观察频谱移动；f<sub>LO</sub>=f<sub>RF</sub> 时即为零中频（直接变频）。</div>
+  <div class="controls">
+    <div class="ctrl"><label>RF 信号频率 <span id="v_rf">100 Hz</span></label>
+      <input type="range" id="rf" min="50" max="120" value="100"></div>
+    <div class="ctrl"><label>本振 LO 频率 <span id="v_lo">90 Hz</span></label>
+      <input type="range" id="lo" min="20" max="150" value="90"></div>
+  </div>
+  <canvas id="cv_mix" height="240"></canvas>
+  <div class="legend"><i style="background:#475569"></i>原始 RF 频谱 <i style="background:var(--accent)"></i>混频产物（和频+差频） <i style="background:var(--warn)"></i>低通滤波器通带</div>
+  <div class="readout" id="mix_out"></div>
+</div>
+
+<h2>七、仿真 ④：实时瀑布图</h2>
+<div class="sim">
+  <div class="desc">模拟 SDR 软件的经典界面：滚动瀑布图。内置一个固定台站、一个跳频信号和一个缓慢漂移的信号，加底噪。点击画面可暂停/继续。</div>
+  <canvas id="cv_wf" height="360"></canvas>
+  <div class="legend">横轴：频率｜纵轴：时间（新的在顶部）｜颜色：信号强度</div>
+</div>
+
+<h2>八、仿真 ⑤：带通采样 —— "故意的混叠"</h2>
+<div class="sim">
+  <div class="desc">一个 100~110 MHz 的窄带信号（如 FM 广播频段），直接用远低于载频的采样率采样。采样后频谱以 f<sub>s</sub>/2 为周期反复折叠延拓。调采样率，当折叠后的副本恰好完整落进 0~f<sub>s</sub>/2 且<b>不与自身重叠</b>时，就能从"低速"采样中恢复原信号——这是 SDR 省掉一级混频的常用技巧。</div>
+  <div class="controls">
+    <div class="ctrl"><label>采样率 f<sub>s</sub> <span id="v_bps">55 MHz</span></label>
+      <input type="range" id="bps" min="20" max="250" value="55"></div>
+  </div>
+  <canvas id="cv_bps" height="260"></canvas>
+  <div class="legend"><i style="background:var(--accent)"></i>原始信号频带 100~110 MHz 及其延拓副本 <i style="background:var(--warn)"></i>0~f<sub>s</sub>/2 基带窗口（ADC 实际"看到"的）</div>
+  <div class="readout" id="bps_out"></div>
+</div>
+
+<h2>九、数字下变频（DDC）与抽取滤波理论</h2>
+<div class="cards">
+  <div class="card" style="grid-column:1/-1">
+    <h3>1. DDC：SDR 接收机的第一道数字处理</h3>
+    ADC 以高采样率采下整个频段后，我们往往只关心其中一小段。数字下变频把目标频道"搬"到零频、滤掉其他频道、再降低数据率：
+    <div class="arch">
+      <div class="blk">ADC 数据流<small>如 100 MS/s</small></div><span class="arr">→</span>
+      <div class="blk">数字混频 ×NCO<small>频道搬到 0 Hz</small></div><span class="arr">→</span>
+      <div class="blk">低通滤波 FIR/CIC<small>只留目标频道</small></div><span class="arr">→</span>
+      <div class="blk">抽取 ÷M<small>数据率降 M 倍</small></div><span class="arr">→ 基带 I/Q</span>
+    </div>
+    输出一路低速率、高信噪比的复基带信号，交给后续解调软件。
+  </div>
+  <div class="card">
+    <h3>2. NCO 数控振荡器</h3>
+    数字版本振：<b>相位累加器</b>每个时钟累加一个"频率字"，相位查正弦表输出 I/Q 两路本振：<br>
+    <span class="formula">φ[n+1] = (φ[n] + Δφ) mod 2π，Δφ = 2π·f<sub>nco</sub>/f<sub>s</sub></span><br>
+    改频率字即改频道——软件"调台"就是写这个寄存器。
+  </div>
+  <div class="card">
+    <h3>3. 为什么抽取前必须先滤波</h3>
+    直接每 M 点取 1 点，等效采样率降为 f<sub>s</sub>/M，一切高于 f<sub>s</sub>/(2M) 的成分都会<b>混叠</b>回基带污染信号。所以顺序铁律是：<br>
+    <span class="formula">先低通滤波（截止 ≤ f<sub>s</sub>/(2M)），再抽取</span><br>
+    这与 ADC 前加抗混叠滤波器是同一个道理，只是搬到了数字域。
+  </div>
+  <div class="card">
+    <h3>4. CIC 滤波器：不用乘法器的抽取利器</h3>
+    级联积分梳状（CIC）滤波器只有加法器和延迟单元，<b>零乘法</b>，适合 FPGA 里跑几百 MS/s 的第一级大倍率抽取。代价：通带有下垂（droop），需要后级 FIR 补偿。
+  </div>
+  <div class="card">
+    <h3>5. 半带 FIR 与多级抽取</h3>
+    半带滤波器近一半系数为零，专为 2 倍抽取优化。大抽取比（如 ÷64）通常级联实现：CIC÷16 → 半带÷2 → 半带÷2，逐级降压，远比单级 65 阶 FIR 直接 ÷64 省资源。
+  </div>
+  <div class="card">
+    <h3>6. 抽取的隐藏福利：处理增益</h3>
+    抽取把噪声带宽收窄 M 倍，带内信噪比提升：<br>
+    <span class="formula">处理增益 = 10·lg(M) dB</span><br>
+    ÷16 抽取白赚 12 dB SNR——这就是为什么 SDR 喜欢"采得快、取得狠"。
+  </div>
+</div>
+
+<h2>十、仿真 ⑥：DDC + 抽取流水线</h2>
+<div class="sim">
+  <div class="desc">ADC 以 100 MS/s 采到两个信号：目标频道（30 MHz）与干扰（42 MHz）。流水线：<b>①混频</b> NCO 把目标搬到 0 Hz → <b>②FIR 低通</b>滤掉干扰 → <b>③抽取</b>降数据率。三幅图逐级观察频谱变化。试试把抽取率开大、滤波器截止调宽——违反"先滤波再抽取"时干扰混叠回基带。</div>
+  <div class="controls">
+    <div class="ctrl"><label>NCO 频率 <span id="v_nco">30 MHz</span></label>
+      <input type="range" id="ddc_nco" min="20" max="45" value="30"></div>
+    <div class="ctrl"><label>FIR 低通截止 <span id="v_fc">5 MHz</span></label>
+      <input type="range" id="ddc_fc" min="2" max="15" value="5"></div>
+    <div class="ctrl"><label>抽取率 M <span id="v_M">4</span></label>
+      <select id="ddc_M">
+        <option value="1">÷1（不抽取）</option>
+        <option value="2">÷2</option>
+        <option value="4" selected>÷4</option>
+        <option value="8">÷8</option>
+        <option value="16">÷16</option>
+      </select></div>
+  </div>
+  <canvas id="cv_ddc1" height="170"></canvas>
+  <div class="legend">① ADC 输入频谱（0~50 MHz 实信号）：目标 30 MHz + 干扰 42 MHz</div>
+  <canvas id="cv_ddc2" height="170"></canvas>
+  <div class="legend">② 混频 + FIR 低通后（复基带，±50 MHz）：目标在 0 Hz，干扰被滤除</div>
+  <canvas id="cv_ddc3" height="170"></canvas>
+  <div class="legend">③ 抽取后输出（±50/M MHz）：数据率 ÷M，信号保留</div>
+  <div class="readout" id="ddc_out"></div>
+</div>
+
+</div>
+<footer>rftools · SDR 基础 · 纯本地单文件，无外部依赖</footer>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+
+/* ============ FFT ============ */
+function fft(re, im){
+  const n=re.length;
+  for(let i=1,j=0;i<n;i++){
+    let bit=n>>1;
+    for(;j&bit;bit>>=1) j^=bit;
+    j^=bit;
+    if(i<j){ let t=re[i];re[i]=re[j];re[j]=t; t=im[i];im[i]=im[j];im[j]=t; }
+  }
+  for(let len=2;len<=n;len<<=1){
+    const ang=-2*Math.PI/len, wr=Math.cos(ang), wi=Math.sin(ang);
+    for(let i=0;i<n;i+=len){
+      let cwr=1,cwi=0;
+      for(let j=0;j<len/2;j++){
+        const ur=re[i+j], ui=im[i+j];
+        const vr=re[i+j+len/2]*cwr-im[i+j+len/2]*cwi;
+        const vi=re[i+j+len/2]*cwi+im[i+j+len/2]*cwr;
+        re[i+j]=ur+vr; im[i+j]=ui+vi;
+        re[i+j+len/2]=ur-vr; im[i+j+len/2]=ui-vi;
+        const t=cwr*wr-cwi*wi; cwi=cwr*wi+cwi*wr; cwr=t;
+      }
+    }
+  }
+}
+/* ============ Canvas 工具 ============ */
+function setupCanvas(id){
+  const cv=$(id);
+  const dpr=window.devicePixelRatio||1;
+  const w=cv.clientWidth, h=cv.height;
+  cv.width=w*dpr; cv.height=h*dpr;
+  const ctx=cv.getContext("2d");
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  return {ctx,w,h};
+}
+function drawGrid(ctx,w,h,xLabel,yLabel){
+  ctx.clearRect(0,0,w,h);
+  ctx.strokeStyle="#22304a"; ctx.lineWidth=1; ctx.beginPath();
+  for(let i=1;i<10;i++){ ctx.moveTo(w*i/10,0); ctx.lineTo(w*i/10,h); }
+  for(let i=1;i<5;i++){ ctx.moveTo(0,h*i/5); ctx.lineTo(w,h*i/5); }
+  ctx.stroke();
+  ctx.fillStyle="#64748b"; ctx.font="11px Consolas";
+  if(xLabel) ctx.fillText(xLabel, w-ctx.measureText(xLabel).width-6, h-6);
+  if(yLabel) ctx.fillText(yLabel, 6, 14);
+}
+function plotXY(ctx,xs,ys,xa,xb,ya,yb,w,h,color,lw){
+  ctx.strokeStyle=color; ctx.lineWidth=lw||1.5; ctx.beginPath();
+  let started=false;
+  for(let i=0;i<xs.length;i++){
+    const X=(xs[i]-xa)/(xb-xa)*w, Y=h-(ys[i]-ya)/(yb-ya)*h;
+    if(X<0||X>w){ started=false; continue; }
+    if(!started){ ctx.moveTo(X,Y); started=true; } else ctx.lineTo(X,Y);
+  }
+  ctx.stroke();
+}
+
+/* ============ 仿真①：星座图 ============ */
+function constellationPoints(mod){
+  if(mod==="bpsk") return [[1,0],[-1,0]];
+  if(mod==="qpsk") return [[.707,.707],[-.707,.707],[.707,-.707],[-.707,-.707]];
+  const p=[]; const L=[-3,-1,1,3].map(v=>v/Math.sqrt(10));
+  for(const i of L) for(const q of L) p.push([i,q]);
+  return p;
+}
+function gauss(){ // Box-Muller
+  let u=0,v=0;
+  while(u===0) u=Math.random();
+  v=Math.random();
+  return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+}
+function updateConst(){
+  const mod=$("mod").value, snr=+$("snr").value;
+  $("v_snr").textContent=snr+" dB";
+  const pts=constellationPoints(mod);
+  const sigma=Math.sqrt(Math.pow(10,-snr/10)/2);
+  const {ctx,w,h}=setupCanvas("cv_const");
+  ctx.clearRect(0,0,w,h);
+  // 网格与坐标轴
+  ctx.strokeStyle="#22304a";
+  for(let i=1;i<8;i++){ ctx.beginPath(); ctx.moveTo(w*i/8,0); ctx.lineTo(w*i/8,h); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0,h*i/8); ctx.lineTo(w,h*i/8); ctx.stroke(); }
+  ctx.strokeStyle="#334155";
+  ctx.beginPath(); ctx.moveTo(w/2,0); ctx.lineTo(w/2,h); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0,h/2); ctx.lineTo(w,h/2); ctx.stroke();
+  ctx.fillStyle="#64748b"; ctx.font="11px Consolas";
+  ctx.fillText("I", w-14, h/2-6); ctx.fillText("Q", w/2+6, 14);
+  const R=Math.min(w,h)/2*0.82;
+  const X=v=>w/2+v*R, Y=v=>h/2-v*R;
+  // 含噪点云
+  const NS=600;
+  ctx.fillStyle="rgba(56,189,248,.55)";
+  let err=0;
+  for(let i=0;i<NS;i++){
+    const s=pts[Math.floor(Math.random()*pts.length)];
+    const i2=s[0]+sigma*gauss(), q2=s[1]+sigma*gauss();
+    // 判决：找最近理想点
+    let best=0,bd=1e9;
+    for(let k=0;k<pts.length;k++){
+      const d=(pts[k][0]-i2)**2+(pts[k][1]-q2)**2;
+      if(d<bd){bd=d;best=k;}
+    }
+    if(pts[best]!==s) err++;
+    ctx.fillRect(X(i2)-1,Y(q2)-1,2.4,2.4);
+  }
+  // 理想点
+  for(const p of pts){
+    ctx.strokeStyle="#f472b6"; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(X(p[0]),Y(p[1]),7,0,7); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(X(p[0])-10,Y(p[1])); ctx.lineTo(X(p[0])+10,Y(p[1])); ctx.stroke();
+  }
+  const ser=(err/NS*100).toFixed(1);
+  $("const_out").textContent =
+    mod.toUpperCase()+" · SNR="+snr+" dB · 噪声 σ="+sigma.toFixed(3)+
+    " · 本次符号误判率 ≈ "+ser+" %（"+err+"/"+NS+"）——SNR 越低点云越散，跨界即误判";
+}
+$("mod").addEventListener("change",updateConst);
+$("snr").addEventListener("input",updateConst);
+
+/* ============ 仿真②：AM/FM ============ */
+function updateMod(){
+  const type=$("modamfm").value, fm=+$("fm").value, depth=+$("depth").value;
+  $("v_fm").textContent=fm+" Hz";
+  $("v_depth").textContent=type==="am"?(depth*100).toFixed(0)+" %":(depth*20).toFixed(0)+" Hz 频偏";
+  const fc=40, FS=512, N=1024;
+  const re=new Float64Array(N), im=new Float64Array(N);
+  const xs=[], base=[], modu=[];
+  const tmax=N/FS;
+  for(let n=0;n<N;n++){
+    const t=n/FS;
+    const m=Math.sin(2*Math.PI*fm*t);
+    let s;
+    if(type==="am") s=(1+depth*m)*Math.cos(2*Math.PI*fc*t);
+    else s=Math.cos(2*Math.PI*fc*t+depth*20/fm*Math.sin(2*Math.PI*fm*t));
+    re[n]=s;
+    if(n%4===0){ xs.push(t); base.push(m); modu.push(s); }
+  }
+  const td=setupCanvas("cv_modt");
+  drawGrid(td.ctx,td.w,td.h,"时间 s","幅度");
+  plotXY(td.ctx,xs,base,0,tmax,-2,2,td.w,td.h,"#a3e635",1.5);
+  plotXY(td.ctx,xs,modu,0,tmax,-2,2,td.w,td.h,"#38bdf8",1);
+  // 频谱
+  for(let n=0;n<N;n++) re[n]*=0.5*(1-Math.cos(2*Math.PI*n/(N-1)));
+  fft(re,im);
+  const fx=[],fy=[];
+  for(let k=1;k<N/2;k++){
+    const f=k*FS/N;
+    if(f>160) break;
+    fx.push(f); fy.push(20*Math.log10(Math.sqrt(re[k]*re[k]+im[k]*im[k])/N+1e-9));
+  }
+  const sp=setupCanvas("cv_modf");
+  drawGrid(sp.ctx,sp.w,sp.h,"频率 Hz","dB");
+  plotXY(sp.ctx,fx,fy,0,160,-70,0,sp.w,sp.h,"#f472b6",1.5);
+  sp.ctx.fillStyle="#64748b"; sp.ctx.font="11px Consolas";
+  const Xc=fc/160*sp.w;
+  sp.ctx.fillText("fc="+fc+"Hz", Xc-16, 28);
+  $("mod_out").textContent = type==="am"
+    ? "AM：频谱=载波 fc + 上下边带 fc±fm，各占调制深度一半能量。包络检波即可解调（最简收音机原理）"
+    : "FM：频偏 Δf="+(depth*20).toFixed(0)+" Hz，卡森带宽 BW≈2(Δf+fm)="+(2*(depth*20+fm)).toFixed(0)+" Hz，边带数量随调制度增多";
+}
+$("modamfm").addEventListener("change",updateMod);
+["fm","depth"].forEach(id=>$(id).addEventListener("input",updateMod));
+
+/* ============ 仿真③：混频 ============ */
+function updateMix(){
+  const frf=+$("rf").value, flo=+$("lo").value;
+  $("v_rf").textContent=frf+" Hz";
+  $("v_lo").textContent=flo+" Hz";
+  const fsum=frf+flo, fdiff=Math.abs(frf-flo);
+  const fmax=280;
+  const {ctx,w,h}=setupCanvas("cv_mix");
+  drawGrid(ctx,w,h,"频率 Hz","谱线");
+  // LPF 通带阴影（截止 40Hz）
+  ctx.fillStyle="rgba(251,191,36,.08)";
+  ctx.fillRect(0,0,40/fmax*w,h);
+  ctx.strokeStyle="#fbbf24"; ctx.setLineDash([5,4]);
+  ctx.beginPath(); ctx.moveTo(40/fmax*w,0); ctx.lineTo(40/fmax*w,h); ctx.stroke(); ctx.setLineDash([]);
+  const stick=(f,color,label,dash)=>{
+    const X=f/fmax*w;
+    ctx.strokeStyle=color; ctx.lineWidth=3;
+    if(dash) ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.moveTo(X,h); ctx.lineTo(X,h*0.25); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle=color; ctx.font="11px Consolas";
+    ctx.fillText(label, Math.min(X+4,w-70), h*0.25+12);
+  };
+  stick(frf,"#475569","RF "+frf,true);
+  stick(fsum,"#38bdf8","和频 "+fsum,false);
+  stick(fdiff,"#38bdf8","差频 "+fdiff,false);
+  // 滤波后
+  ctx.fillStyle="#a3e635"; ctx.font="13px Consolas";
+  ctx.fillText("低通滤波后剩下："+fdiff+" Hz（基带）", 12, 24);
+  $("mix_out").textContent =
+    "f_RF="+frf+" Hz × f_LO="+flo+" Hz → 和频 "+fsum+" Hz + 差频 "+fdiff+" Hz；LPF 滤掉和频，得到 "+fdiff+" Hz。"+
+    (frf===flo?" f_LO=f_RF：零中频（直接变频），SDR 最常用架构":"");
+}
+["rf","lo"].forEach(id=>$(id).addEventListener("input",updateMix));
+
+/* ============ 仿真④：瀑布图 ============ */
+let wfRunning=true, wfTimer=null, wfTime=0;
+function waterfallFrame(){
+  if(!wfRunning) return;
+  const {ctx,w,h}=setupCanvas("cv_wf");
+  wfTime+=0.05;
+  // 下移旧图
+  ctx.drawImage(ctx.canvas,0,0,w,h,0,Math.max(1,h/300),w,h);
+  // 生成新一帧频谱
+  const hop=0.5+0.5*Math.sin(wfTime*1.7);           // 跳频信号位置
+  const hopF=hop>0.5?0.25:0.7;                       // 两个频点跳变
+  const driftF=0.5+0.3*Math.sin(wfTime*0.35);        // 漂移信号
+  const row=document.createElement("canvas");
+  row.width=w; row.height=2;
+  const rctx=row.getContext("2d");
+  const img=rctx.createImageData(w,2);
+  for(let x=0;x<w;x++){
+    const f=x/w;
+    let v=-70+8*Math.random(); // 底噪 dB
+    v+=40*Math.exp(-((f-0.12)**2)/(2*0.004**2));     // 固定台站
+    v+=35*Math.exp(-((f-hopF)**2)/(2*0.006**2));     // 跳频
+    v+=30*Math.exp(-((f-driftF)**2)/(2*0.003**2));   // 漂移
+    const t=Math.max(0,Math.min(1,(v+70)/55));
+    let r,g,b;
+    if(t<0.33){const u=t/0.33; r=0; g=0; b=30+u*120;}
+    else if(t<0.66){const u=(t-0.33)/0.33; r=0; g=u*200; b=150+u*60;}
+    else {const u=(t-0.66)/0.34; r=u*255; g=200+u*55; b=210-u*190;}
+    for(let yy=0;yy<2;yy++){
+      const p=(yy*w+x)*4;
+      img.data[p]=r; img.data[p+1]=g; img.data[p+2]=b; img.data[p+3]=255;
+    }
+  }
+  rctx.putImageData(img,0,0);
+  ctx.drawImage(row,0,0);
+  ctx.fillStyle="rgba(226,232,240,.8)"; ctx.font="10px Consolas";
+  ctx.fillText("t="+wfTime.toFixed(1)+"s",6,12);
+  wfTimer=setTimeout(waterfallFrame,66);
+}
+$("cv_wf").addEventListener("click",()=>{
+  wfRunning=!wfRunning;
+  if(wfRunning) waterfallFrame();
+});
+
+/* ============ 仿真⑤：带通采样 ============ */
+function updateBPS(){
+  const fs=+$("bps").value; // MHz
+  $("v_bps").textContent=fs+" MHz";
+  const fL=100, fH=110, BW=fH-fL;
+  const fmax=140;
+  const {ctx,w,h}=setupCanvas("cv_bps");
+  drawGrid(ctx,w,h,"频率 MHz","频谱（示意）");
+  const X=f=>f/fmax*w;
+  // 基带窗口阴影
+  ctx.fillStyle="rgba(251,191,36,.08)";
+  ctx.fillRect(0,0,X(fs/2),h);
+  ctx.strokeStyle="#fbbf24"; ctx.setLineDash([5,4]);
+  ctx.beginPath(); ctx.moveTo(X(fs/2),0); ctx.lineTo(X(fs/2),h); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle="#fbbf24"; ctx.font="11px Consolas";
+  ctx.fillText("基带 0~"+(fs/2)+" MHz", 6, 26);
+  // 原始频带 + 延拓副本：采样后频谱周期化为 fs，即所有 f ± n·fs
+  function drawBand(a,b,color,alpha){
+    ctx.fillStyle=color.replace("A",alpha);
+    ctx.fillRect(X(a),h*0.3,X(b)-X(a),h*0.5);
+  }
+  // 基带内的折叠结果：所有 (f mod fs) 及其镜像
+  drawBand(fL,fH,"rgba(56,189,248,A)",0.9); // 原始
+  for(let n=1;n<=4;n++){
+    for(const s of [1,-1]){
+      // 副本：±n·fs 偏移的 ±f 带
+      const a1=n*fs+s*fL, b1=n*fs+s*fH;
+      const a2=n*fs-s*fH, b2=n*fs-s*fL;
+      for(const [a,b] of [[a1,b1],[a2,b2]]){
+        if(b<0||a>fmax) continue;
+        drawBand(Math.max(a,0),Math.min(b,fmax),"rgba(56,189,248,A)",0.35);
+      }
+    }
+  }
+  // 计算基带内的折叠带
+  const fold=f=>{ let v=f%fs; if(v>fs/2) v=fs-v; return v; };
+  const bf=[Math.min(fold(fL),fold(fH)), Math.max(fold(fL),fold(fH))];
+  // 判断折叠后是否失真：带宽在折叠中是否被压扁/翻转重叠
+  const foldedSpan=Math.abs(fold(fH)-fold(fL));
+  const intact = Math.abs(foldedSpan-BW)<1e-6;
+  // 高亮基带内信号
+  if(bf[1]<=fs/2){
+    ctx.fillStyle=intact?"rgba(163,230,53,.9)":"rgba(248,113,113,.9)";
+    ctx.fillRect(X(bf[0]),h*0.35,X(bf[1])-X(bf[0]),h*0.4);
+  }
+  ctx.fillStyle="#94a3b8"; ctx.font="11px Consolas";
+  for(const f of [20,40,60,80,100,120]) ctx.fillText(f, X(f)-6, h-18);
+  $("bps_out").innerHTML = intact
+    ? "✓ f<sub>s</sub>="+fs+" MHz 可用：信号折叠到基带 "+bf[0].toFixed(0)+"~"+bf[1].toFixed(0)+
+      " MHz，带宽完整（"+BW+" MHz），无重叠——可用 "+fs+" MS/s 采样 105 MHz 附近的信号！（仅为最高频率的约 1/2）"
+    : "⚠ f<sub>s</sub>="+fs+" MHz 不可用：频带折叠后发生<b>自我重叠</b>（跨过了折叠边界），信息被破坏。条件：2f<sub>H</sub>/n ≤ f<sub>s</sub> ≤ 2f<sub>L</sub>/(n−1)，且 f<sub>s</sub> ≥ 2B = "+(2*BW)+" MHz";
+}
+$("bps").addEventListener("input",updateBPS);
+
+/* ============ 仿真⑥：DDC + 抽取 ============ */
+function updateDDC(){
+  const FS=100, N=1024;               // MHz, 采样点
+  const fnco=+$("ddc_nco").value, fc=+$("ddc_fc").value, M=+$("ddc_M").value;
+  $("v_nco").textContent=fnco+" MHz";
+  $("v_fc").textContent=fc+" MHz";
+  $("v_M").textContent="÷"+M;
+  const fTgt=30, fInt=42;             // 目标/干扰 MHz
+  // ① ADC 输入
+  const sig=new Float64Array(N);
+  for(let n=0;n<N;n++){
+    sig[n]=Math.cos(2*Math.PI*fTgt*n/FS)+0.8*Math.cos(2*Math.PI*fInt*n/FS)+0.06*(Math.random()*2-1);
+  }
+  const spec=(re,im)=>{ const n=re.length; const r=Float64Array.from(re),i2=Float64Array.from(im); fft(r,i2);
+    const out=[]; for(let k=0;k<n;k++) out.push(Math.hypot(r[k],i2[k])/n); return out; };
+  const inSpec=spec(sig,new Float64Array(N));
+  const c1=setupCanvas("cv_ddc1");
+  drawGrid(c1.ctx,c1.w,c1.h,"MHz","幅度");
+  {
+    const xs=[],ys=[];
+    for(let k=0;k<N/2;k++){ xs.push(k*FS/N); ys.push(inSpec[k]); }
+    plotXY(c1.ctx,xs,ys,0,50,0,0.6,c1.w,c1.h,"#38bdf8",1.2);
+    c1.ctx.fillStyle="#fbbf24"; c1.ctx.font="11px Consolas";
+    c1.ctx.fillText("目标 "+fTgt, fTgt/50*c1.w-16, 22);
+    c1.ctx.fillText("干扰 "+fInt, fInt/50*c1.w-16, 22);
+  }
+  // ② 数字混频（NCO）+ FIR 低通
+  const mr=new Float64Array(N), mi=new Float64Array(N);
+  for(let n=0;n<N;n++){
+    const ph=2*Math.PI*fnco*n/FS;
+    mr[n]=sig[n]*Math.cos(ph); mi[n]=-sig[n]*Math.sin(ph); // ×exp(-jωt)
+  }
+  // 窗函数法 FIR 低通（65 阶）
+  const L=65, h=new Float64Array(L);
+  const fcN=fc/FS; // 归一化截止（cycles/sample）
+  let hsum=0;
+  for(let k=0;k<L;k++){
+    const m=k-(L-1)/2;
+    h[k]=(m===0?2*fcN:Math.sin(2*Math.PI*fcN*m)/(Math.PI*m))*(0.5*(1-Math.cos(2*Math.PI*k/(L-1))));
+    hsum+=h[k];
+  }
+  for(let k=0;k<L;k++) h[k]/=hsum;
+  const fr=new Float64Array(N), fi=new Float64Array(N);
+  for(let n=0;n<N;n++){
+    let sr=0, si=0;
+    for(let k=0;k<L;k++){ const j=n-k; if(j<0) break; sr+=mr[j]*h[k]; si+=mi[j]*h[k]; }
+    fr[n]=sr; fi[n]=si;
+  }
+  const mixSpec=spec(fr,fi); // 复信号，全长谱
+  const c2=setupCanvas("cv_ddc2");
+  drawGrid(c2.ctx,c2.w,c2.h,"MHz（0=目标频道中心）","幅度");
+  {
+    const xs=[],ys=[];
+    for(let k=0;k<N;k++){ // fftshift 到 ±50
+      const kk=(k+N/2)%N;
+      xs.push((k-N/2)*FS/N); ys.push(mixSpec[kk]);
+    }
+    plotXY(c2.ctx,xs,ys,-50,50,0,0.6,c2.w,c2.h,"#a3e635",1.2);
+    c2.ctx.fillStyle="#f472b6"; c2.ctx.font="11px Consolas";
+    c2.ctx.fillText("干扰残余 @ "+(fInt-fnco)+" MHz", Math.max(4,(fInt-fnco+50)/100*c2.w-50), 22);
+    // 滤波器通带示意
+    c2.ctx.fillStyle="rgba(251,191,36,.08)";
+    c2.ctx.fillRect((-fc+50)/100*c2.w,0,2*fc/100*c2.w,c2.h);
+  }
+  // ③ 抽取
+  const Nout=N/M, dr=new Float64Array(Nout), di=new Float64Array(Nout);
+  for(let n=0;n<Nout;n++){ dr[n]=fr[n*M]; di[n]=fi[n*M]; }
+  const dSpec=spec(dr,di);
+  const c3=setupCanvas("cv_ddc3");
+  const fspan=FS/M/2;
+  drawGrid(c3.ctx,c3.w,c3.h,"MHz（输出奈奎斯特 = ±"+fspan.toFixed(1)+" MHz）","幅度");
+  {
+    const xs=[],ys=[];
+    for(let k=0;k<Nout;k++){
+      const kk=(k+Nout/2)%Nout;
+      xs.push((k-Nout/2)*FS/N); ys.push(dSpec[kk]*1); // 幅度尺度随抽取不变
+    }
+    plotXY(c3.ctx,xs,ys,-fspan,fspan,0,0.6,c3.w,c3.h,"#38bdf8",1.2);
+    c3.ctx.fillStyle="#a3e635"; c3.ctx.font="11px Consolas";
+    c3.ctx.fillText("目标 @ 0 Hz", c3.w/2+6, 22);
+  }
+  // 告警：滤波器太宽+抽取过大 → 干扰或带外噪声混叠
+  const aliasRisk = fc > FS/(2*M);
+  const intInBand = Math.abs(fInt-fnco)<=fc;   // 干扰是否落在通带内（滤不掉）
+  const gain=10*Math.log10(M);
+  $("ddc_out").innerHTML =
+    "输出采样率 = "+(FS/M).toFixed(1)+" MS/s（数据量 ÷"+M+"）· 处理增益 +"+gain.toFixed(0)+
+    " dB · "+(intInBand?"⚠ 干扰在滤波器通带内，滤不掉！调 NCO 避开或收窄截止":aliasRisk?"⚠ 截止频率 "+fc+" MHz &gt; 抽取后奈奎斯特 "+fspan.toFixed(1)+" MHz——带外成分将混叠回基带":"✓ 流水线正确：先滤波后抽取，干扰已滤除");
+}
+["ddc_nco","ddc_fc"].forEach(id=>$(id).addEventListener("input",updateDDC));
+$("ddc_M").addEventListener("change",updateDDC);
+
+updateConst();
+updateMod();
+updateMix();
+updateBPS();
+updateDDC();
+waterfallFrame();
+window.addEventListener("resize",()=>{ updateConst(); updateMod(); updateMix(); updateBPS(); updateDDC(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RF Tools — 射频 · 信号处理 · 毫米波雷达 · SDR 科普工具集</title>
+<style>
+:root{
+  --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --border:#2d3748;
+  --text:#e2e8f0; --dim:#94a3b8; --accent:#38bdf8; --accent2:#f472b6;
+  --accent3:#a3e635; --warn:#fbbf24;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;line-height:1.7;min-height:100vh}
+header{text-align:center;padding:70px 24px 40px;background:linear-gradient(180deg,#16213e 0%,var(--bg) 100%)}
+header h1{font-size:34px;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+header p{color:var(--dim);margin-top:10px;font-size:15px}
+.wrap{max-width:1000px;margin:0 auto;padding:20px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:20px}
+@media(max-width:520px){.grid{grid-template-columns:1fr}}
+a.tool{display:block;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:26px;text-decoration:none;color:var(--text);transition:transform .15s,border-color .15s}
+a.tool:hover{transform:translateY(-4px);border-color:var(--accent)}
+.tool .icon{font-size:34px;margin-bottom:10px}
+.tool h2{font-size:20px;margin-bottom:6px}
+.tool .sub{color:var(--dim);font-size:13px;margin-bottom:14px}
+.tool .tags span{display:inline-block;background:var(--panel2);color:var(--accent3);border-radius:4px;padding:2px 9px;font-size:12px;margin:0 6px 6px 0}
+.tool .go{color:var(--accent);font-size:13px;margin-top:6px}
+footer{text-align:center;color:#475569;font-size:12px;margin:60px 0 30px}
+</style>
+</head>
+<body>
+<header>
+  <h1>RF Tools 科普工具集</h1>
+  <p>射频 · 信号处理 · 毫米波雷达 · SDR —— 交互式仿真，纯本地单文件，离线可用</p>
+</header>
+<div class="wrap">
+  <div class="grid">
+    <a class="tool" href="RF/射频基础.html">
+      <div class="icon">📡</div>
+      <h2>射频基础（RF）</h2>
+      <div class="sub">dB 换算、滤波器频响、阻抗匹配与驻波</div>
+      <div class="tags"><span>dB/dBm 换算器</span><span>巴特沃斯滤波器</span><span>非线性 P1dB/IP3</span><span>VSWR 驻波演示</span><span>PLL 锁定仿真</span></div>
+      <div class="go">打开工具 →</div>
+    </a>
+    <a class="tool" href="DSP/信号处理基础.html">
+      <div class="icon">〰️</div>
+      <h2>信号处理基础（DSP）</h2>
+      <div class="sub">信号与噪声、采样定理、FFT 频谱分析、窗函数</div>
+      <div class="tags"><span>傅里叶级数合成</span><span>采样与混叠演示</span><span>FFT 频谱仪</span><span>窗函数对比</span></div>
+      <div class="go">打开工具 →</div>
+    </a>
+    <a class="tool" href="FMCW/毫米波雷达基础.html">
+      <div class="icon">🚗</div>
+      <h2>毫米波雷达基础（FMCW）</h2>
+      <div class="sub">Chirp 调频、拍频测距、多普勒测速、RD 图</div>
+      <div class="tags"><span>Chirp 时频图</span><span>FFT 测距</span><span>距离-多普勒热力图</span><span>雷达方程</span><span>CFAR 检测</span><span>角度估计</span></div>
+      <div class="go">打开工具 →</div>
+    </a>
+    <a class="tool" href="SDR/SDR基础.html">
+      <div class="icon">📻</div>
+      <h2>SDR 基础（软件无线电）</h2>
+      <div class="sub">I/Q 信号、星座图、调制解调、频谱搬移</div>
+      <div class="tags"><span>I/Q 星座图</span><span>AM/FM 调制</span><span>混频下变频</span><span>瀑布图</span><span>带通采样</span><span>DDC+抽取</span></div>
+      <div class="go">打开工具 →</div>
+    </a>
+  </div>
+</div>
+<footer>rftools · 四个工具均为独立单文件 HTML · 无任何外部依赖，双击即可离线使用</footer>
+</body>
+</html>
