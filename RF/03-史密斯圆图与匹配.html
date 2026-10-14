@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>史密斯圆图与匹配 — 射频 · RF Tools</title>
+<style>
+:root{
+  --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --border:#2d3748;
+  --text:#e2e8f0; --dim:#94a3b8; --accent:#38bdf8; --accent2:#f472b6;
+  --accent3:#a3e635; --warn:#fbbf24; --grid:#22304a;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;line-height:1.7;padding:0 0 60px}
+header{background:linear-gradient(135deg,#0f2027,#16213e);border-bottom:1px solid var(--border);padding:28px 24px}
+header h1{font-size:26px;color:var(--accent)}
+header p{color:var(--dim);margin-top:6px;font-size:14px}
+.back{display:inline-block;margin-bottom:10px;color:var(--dim);text-decoration:none;font-size:13px}
+.back:hover{color:var(--accent)}
+.crumb{font-family:Consolas,monospace;font-size:12px;color:var(--accent3);margin-bottom:6px}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+h2{font-size:20px;color:var(--accent);margin:38px 0 14px;padding-left:12px;border-left:4px solid var(--accent)}
+h3{font-size:16px;color:var(--accent2);margin:0 0 8px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px 18px;font-size:14px}
+.card b{color:var(--accent3)}
+.formula{display:inline-block;background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:2px 10px;margin:4px 0;font-family:Consolas,monospace;color:var(--warn);font-size:14px}
+.sim{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px;margin-top:16px}
+.sim .desc{color:var(--dim);font-size:13px;margin-bottom:12px}
+.controls{display:flex;flex-wrap:wrap;gap:16px 26px;margin-bottom:14px}
+.ctrl{display:flex;flex-direction:column;font-size:13px;color:var(--dim);min-width:180px}
+.ctrl label{display:flex;justify-content:space-between;margin-bottom:4px}
+.ctrl label span{color:var(--accent);font-family:Consolas,monospace}
+input[type=range]{width:200px;accent-color:var(--accent)}
+select{background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:13px}
+canvas{display:block;width:100%;background:#0a0e14;border:1px solid var(--border);border-radius:8px}
+.canvas-pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:760px){.canvas-pair{grid-template-columns:1fr}}
+.readout{font-family:Consolas,monospace;font-size:14px;color:var(--accent3);background:var(--panel2);border-radius:6px;padding:8px 14px;margin-top:10px;display:inline-block}
+.legend{font-size:12px;color:var(--dim);margin-top:6px}
+.legend i{display:inline-block;width:18px;height:3px;vertical-align:middle;margin:0 6px 2px 12px;border-radius:2px}
+.pitfall{border-left:4px solid var(--warn);padding:10px 14px;margin:8px 0;background:var(--panel2);border-radius:6px;font-size:14px}
+.pitfall b{color:var(--warn)}
+.related{font-size:13px;color:var(--dim);margin-top:26px}
+.related a{color:var(--accent3);text-decoration:none}
+.related a:hover{color:var(--accent)}
+.pager{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:10px 18px;margin-top:42px;font-size:13px}
+.pager a{color:var(--accent);text-decoration:none}
+.pager a:hover{color:var(--accent2)}
+.pager .mid{color:var(--dim)}
+footer{text-align:center;color:#475569;font-size:12px;margin-top:50px}
+
+/* ==== 分享二维码入口 ==== */
+.share-bar{text-align:center;margin:28px 0 8px}
+.share-btn{background:var(--panel2);color:var(--accent);border:1px solid var(--border);border-radius:10px;padding:8px 24px;font-size:14px;font-family:inherit;cursor:pointer;transition:border-color .15s}
+.share-btn:hover{border-color:var(--accent)}
+.qr-overlay{position:fixed;inset:0;background:rgba(3,6,12,.8);display:flex;align-items:center;justify-content:center;z-index:99}
+.qr-overlay[hidden]{display:none}
+.qr-card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:26px 28px 22px;max-width:340px;width:calc(100% - 48px);text-align:center;position:relative}
+.qr-card h3{font-size:16px;margin-bottom:14px}
+.qr-canvas{background:#fff;border-radius:8px;display:block;margin:0 auto 12px}
+.qr-url{color:var(--dim);font-size:11.5px;word-break:break-all;line-height:1.5;margin-bottom:14px}
+.qr-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.qr-actions button,.qr-actions a{background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:7px 16px;font-size:13px;font-family:inherit;cursor:pointer;text-decoration:none;display:inline-block}
+.qr-actions a{color:var(--accent)}
+.qr-close{position:absolute;top:8px;right:12px;background:none;border:none;color:var(--dim);font-size:20px;cursor:pointer;line-height:1;padding:4px}
+.qr-close:hover{color:var(--text)}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="back" href="../index.html">← 返回工具首页</a>
+    <div class="crumb">RF · 03 / 07 · 射频</div>
+    <h1>史密斯圆图与匹配</h1>
+    <p>把复数阻抗装进一张圆图 —— 交互圆图读 Γ，L 网络综合器算元件值</p>
+  </div>
+</header>
+<div class="wrap">
+
+<h2>一、理论要点</h2>
+<div class="cards">
+  <div class="card">
+    <h3>1. 先归一化</h3>
+    <span class="formula">z = Z/Z₀　（50Ω 系统：Z 除以 50）</span><br>
+    归一化让圆图适用于任何特征阻抗。50+j25Ω → z = 1+j0.5。圆图上一切坐标都是<b>归一化阻抗 z = r + jx</b>。
+  </div>
+  <div class="card">
+    <h3>2. Γ 与 z 的一一映射</h3>
+    <span class="formula">Γ = (z−1)/(z+1)　　z = (1+Γ)/(1−Γ)</span><br>
+    无源阻抗 |Γ|≤1，所以所有阻抗都被压进<b>单位圆内</b>——史密斯圆图就是这张映射图。匹配点 z=1 → Γ=0（圆心）；短路 z=0 → Γ=−1（左端点）；开路 z=∞ → Γ=+1（右端点）。
+  </div>
+  <div class="card">
+    <h3>3. 两族圆织成一张图</h3>
+    <b>等电阻圆</b>：圆心 (r/(1+r), 0)，半径 1/(1+r)，全部与右端点相切；<br>
+    <b>等电抗圆</b>：圆心 (1, 1/x)，半径 |1/x|，上半圆感性、下半圆容性。<br>
+    <span class="formula">等 r 圆：心(r/(1+r),0) 径 1/(1+r)</span><br>
+    任一阻抗点 = 某条等 r 圆与某条等 x 圆的交点。
+  </div>
+  <div class="card">
+    <h3>4. 圆图怎么"读"</h3>
+    圆心=完美匹配；<b>上半=感性</b>（x&gt;0），<b>下半=容性</b>；左端点短路、右端点开路。离圆心越近 |Γ| 越小、VSWR 越接近 1。以圆心为圆心的同心圆是<b>等 VSWR 圆</b>。
+  </div>
+  <div class="card">
+    <h3>5. 沿线移动 = 转圈</h3>
+    传输线上每移动距离 l，Γ 相位转 −2βl：<b>每半波长转一整圈</b>。向源（发电机）方向移动 = <b>顺时针</b>；向负载 = 逆时针。所以一段传输线本身就是"阻抗变换器"（λ/4 阻抗倒置：Zin=Z₀²/ZL）。
+  </div>
+  <div class="card">
+    <h3>6. 串联看阻抗圆图，并联看导纳圆图</h3>
+    并联元件用<b>导纳 y=1/z</b> 更方便：导纳圆图就是阻抗圆图旋转 180°。并联电容 → 沿等电导圆向上（+jb 方向）；并联电感 → 向下。记忆：<b>串联沿等 r 圆移动，并联沿等 g 圆移动</b>。
+  </div>
+  <div class="card">
+    <h3>7. 元件移动方向口诀</h3>
+    串联 L：等 r 圆<b>向上</b>；串联 C：<b>向下</b>；并联 L：等 g 圆向下（阻抗图上表现为向上）；并联 C：等 g 圆向上（阻抗图上向下）。加上"顺时针=向源"，任何匹配网络都能在圆图上一步步画出来。
+  </div>
+  <div class="card">
+    <h3>8. L 网络：最简单的匹配</h3>
+    两个电抗元件（一串一并）即可把任意负载匹配到 50Ω：负载等效并联电阻大于 50Ω 用"并靠负载+串靠源"，反之用"串靠负载+并靠源"。代价是 Q 值被阻抗比强加：<br>
+    <span class="formula">Q = √(R<sub>高</sub>/R<sub>低</sub> − 1)，带宽 ≈ f₀/Q</span><br>
+    阻抗比越大 → Q 越高 → 带宽越窄。要低 Q/宽带得用 π 型、T 型或多节网络。
+  </div>
+</div>
+
+<h2>二、仿真 ①：交互史密斯圆图 —— 滑动 R/X 找 Γ</h2>
+<div class="sim">
+  <div class="desc">拖动 R、X 滑杆，看阻抗点（粉）在圆图上移动：上半平面感性、下半容性，虚部为零时点落在横轴上。黄色虚线是<b>等 VSWR 圆</b>，蓝线是 Γ 矢量。默认 100+j25Ω（z=2+j0.5）——一个明显失配的感性负载，与仿真②的算例一致。</div>
+  <div class="controls">
+    <div class="ctrl"><label>负载电阻 R <span id="v_zr">100 Ω</span></label>
+      <input type="range" id="zr" min="5" max="250" step="5" value="100"></div>
+    <div class="ctrl"><label>负载电抗 X <span id="v_zx">+25 Ω</span></label>
+      <input type="range" id="zx" min="-150" max="150" step="5" value="25"></div>
+    <div class="ctrl"><label>快速预设</label>
+      <select id="z_pre">
+        <option value="100,25" selected>100+j25（感性失配）</option>
+        <option value="50,0">50+j0（匹配）</option>
+        <option value="25,0">25+j0（纯阻低）</option>
+        <option value="10,-40">10−j40（容性）</option>
+        <option value="180,90">180+j90（高阻感性）</option>
+      </select></div>
+  </div>
+  <canvas id="cv_smith1" height="400"></canvas>
+  <div class="legend"><i style="background:var(--accent2)"></i>负载点 z_L <i style="background:var(--accent3)"></i>匹配点 1+j0 <i style="background:var(--warn)"></i>等 VSWR 圆 <i style="background:var(--accent)"></i>Γ 矢量</div>
+  <div class="readout" id="sm1_out"></div>
+</div>
+
+<h2>三、仿真 ②：L 网络匹配综合器 —— 算出元件值</h2>
+<div class="sim">
+  <div class="desc">输入负载 Z<sub>L</sub> 与频率 f₀，自动综合一个两元件 <b>L 网络</b>（优先低通型：并联电容+串联电感）。右图轨迹：负载点 →（并联/串联第一个元件后）→ 中间点 →（第二个元件后）→ 圆心。读数给出 L/C 元件值、Q、带宽估计，并用复数运算<b>数值验证 Z<sub>in</sub>=50+j0</b>。</div>
+  <div class="controls">
+    <div class="ctrl"><label>频率 f₀ <span id="v_f0">1.000 GHz</span></label>
+      <input type="range" id="m_f0" min="1" max="3.78" step="0.01" value="3"><!-- log10(MHz) --></div>
+    <div class="ctrl"><label>负载电阻 R_L <span id="v_rl">100 Ω</span></label>
+      <input type="range" id="m_rl" min="10" max="250" step="5" value="100"></div>
+    <div class="ctrl"><label>负载电抗 X_L <span id="v_xl">+25 Ω</span></label>
+      <input type="range" id="m_xl" min="-100" max="100" step="5" value="25"></div>
+  </div>
+  <div class="canvas-pair">
+    <div><canvas id="cv_smith2" height="360"></canvas>
+      <div class="legend"><i style="background:var(--accent2)"></i>负载点 <i style="background:var(--warn)"></i>中间点（第一个元件后） <i style="background:var(--accent3)"></i>匹配点 50Ω</div></div>
+    <div><canvas id="cv_arc" height="360"></canvas>
+      <div class="legend">匹配前后的 |Γ|–频率示意：L 网络是窄带变换，Q 决定带宽</div></div>
+  </div>
+  <div class="readout" id="sm2_out"></div>
+</div>
+
+<h2>四、小结与常见误区</h2>
+<div class="card">
+  <b>要点回顾：</b>① 先归一化 z=Z/Z₀；② Γ=(z−1)/(z+1)，无源负载全在单位圆内；③ 等 r 圆与等 x 圆交点即阻抗；④ 上感下容、左短右开、心匹配；⑤ 沿线每 λ/2 转一圈，向源顺时针；⑥ 串联沿等 r 圆、并联沿等 g 圆；⑦ L 网络两元件完成匹配，Q=√(R高/R低−1) 不可选。
+</div>
+<div class="pitfall"><b>误区："匹配好了就处处 VSWR=1"。</b>匹配网络只在设计频点 f₀ 完美。频率一偏，负载点在圆图上移动，网络元件的电抗也按 ±ωL、∓1/ωC 变化，两者不再抵消——VSWR 迅速变差。L 网络的带宽被 Q=√(R高/R低−1) 锁死，阻抗比大时是硬伤。</div>
+<div class="pitfall"><b>误区："圆图上永远沿等电阻圆走"。</b>只有<b>串联</b>元件才沿等 r 圆移动；<b>并联</b>元件沿等电导圆（导纳圆图）移动。把串并搞混是画匹配轨迹最常见的错误——这也是为什么仿真②里中间点先"跳"到一条特殊位置：那一步是并联元件干的。</div>
+<div class="pitfall"><b>误区："Q 越高匹配越好"。</b>高 Q 意味着：带宽窄、元件损耗被放大 Q 倍、电感电容上电压/电流摆幅大。L 网络 Q 由阻抗比强加，想要低 Q 只能改拓扑（π/T/多节）或接受宽带匹配网络的复杂度。</div>
+
+<div class="related">延伸阅读：<a href="02-传输线反射与VSWR.html">《传输线反射与 VSWR》</a>——Γ 和 VSWR 的物理来源；<a href="04-滤波器频响.html">《滤波器频响》</a>——匹配网络与滤波器本是一家；<a href="../SDR/01-SDR概念与架构.html">《SDR 概念与架构》</a>——前端匹配在整机里的位置。</div>
+
+<div class="pager">
+  <a href="02-传输线反射与VSWR.html">← 上一篇：传输线反射与 VSWR</a>
+  <a class="mid" href="../index.html">返回首页</a>
+  <a href="04-滤波器频响.html">下一篇：滤波器频响 →</a>
+</div>
+</div>
+
+<div class="share-bar"><button class="share-btn" type="button" data-url="https://gitee.com/penneypl/rftools/blob/master/RF/03-%E5%8F%B2%E5%AF%86%E6%96%AF%E5%9C%86%E5%9B%BE%E4%B8%8E%E5%8C%B9%E9%85%8D.html">📱 分享本页</button></div>
+<footer>rftools · 射频 03/07 · 纯本地单文件，无外部依赖</footer>
+
+<script>
+"use strict";
+/* ==== 公共：复数运算 ==== */
+function cadd(a,b){ return [a[0]+b[0], a[1]+b[1]]; }
+function csub(a,b){ return [a[0]-b[0], a[1]-b[1]]; }
+function cmul(a,b){ return [a[0]*b[0]-a[1]*b[1], a[0]*b[1]+a[1]*b[0]]; }
+function cdiv(a,b){ const d=b[0]*b[0]+b[1]*b[1]; return [(a[0]*b[0]+a[1]*b[1])/d,(a[1]*b[0]-a[0]*b[1])/d]; }
+function cabs(a){ return Math.hypot(a[0],a[1]); }
+/* ==== 公共：Canvas 绘图 ==== */
+function setupCanvas(id){
+  const cv = document.getElementById(id);
+  const dpr = window.devicePixelRatio||1;
+  const w = cv.clientWidth, h = cv.height;
+  cv.width = w*dpr; cv.height = h*dpr;
+  const ctx = cv.getContext("2d");
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  return {ctx, w, h};
+}
+function drawGrid(ctx,w,h,xLabel,yLabel){
+  ctx.clearRect(0,0,w,h);
+  ctx.strokeStyle="#22304a"; ctx.lineWidth=1; ctx.beginPath();
+  for(let i=1;i<10;i++){ ctx.moveTo(w*i/10,0); ctx.lineTo(w*i/10,h); }
+  for(let i=1;i<5;i++){ ctx.moveTo(0,h*i/5); ctx.lineTo(w,h*i/5); }
+  ctx.stroke();
+  ctx.fillStyle="#64748b"; ctx.font="11px Consolas";
+  if(xLabel) ctx.fillText(xLabel, w-ctx.measureText(xLabel).width-6, h-6);
+  if(yLabel) ctx.fillText(yLabel, 6, 14);
+}
+function plotXY(ctx, xs, ys, xa,xb, ya,yb, w,h, color, lw){
+  ctx.strokeStyle=color; ctx.lineWidth=lw||1.5; ctx.beginPath();
+  let started=false;
+  for(let i=0;i<xs.length;i++){
+    const X=(xs[i]-xa)/(xb-xa)*w, Y=h-(ys[i]-ya)/(yb-ya)*h;
+    if(X<0||X>w||Y<-80||Y>h+80){ started=false; continue; }
+    if(!started){ ctx.moveTo(X,Y); started=true; } else ctx.lineTo(X,Y);
+  }
+  ctx.stroke();
+}
+const $ = id => document.getElementById(id);
+/* ==== 公共：史密斯圆图底图 ==== */
+function smithBase(ctx, w, h, big){
+  const cx=w*0.46, cy=h/2, R=Math.min(w*0.36, h/2-16);
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle="#0a0e14"; ctx.beginPath(); ctx.arc(cx,cy,R,0,7); ctx.fill();
+  ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R,0,7); ctx.clip();
+  ctx.strokeStyle="#26415c"; ctx.lineWidth=1;
+  // 横轴
+  ctx.beginPath(); ctx.moveTo(cx-R,cy); ctx.lineTo(cx+R,cy); ctx.stroke();
+  // 等电阻圆
+  for(const r of [0.2,0.5,1,2,5]){
+    const c=r/(1+r), rad=1/(1+r);
+    ctx.beginPath(); ctx.arc(cx+c*R, cy, rad*R, 0, 7); ctx.stroke();
+  }
+  // 等电抗圆（上下对称）
+  for(const x of [0.2,0.5,1,2,5]) for(const s of [1,-1]){
+    const xv=x*s, c2=1/xv;
+    ctx.beginPath(); ctx.arc(cx+R, cy-c2*R, Math.abs(c2)*R, 0, 7); ctx.stroke();
+  }
+  ctx.restore();
+  // 外圆
+  ctx.strokeStyle="#38bdf8"; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.arc(cx,cy,R,0,7); ctx.stroke();
+  // 标注
+  ctx.fillStyle="#64748b"; ctx.font="10px Consolas";
+  ctx.fillText("0（短路）", Math.max(cx-R-64,2), cy+14);
+  ctx.fillText("∞（开路）", Math.min(cx+R+6,w-58), cy-6);
+  ctx.fillText("1（匹配）", cx-2, cy+14);
+  for(const r of [0.2,0.5,2,5]){
+    const gx=(r-1)/(r+1);
+    ctx.fillText("r="+r, cx+gx*R-10, cy+26);
+  }
+  for(const x of [0.2,0.5,1,2,5]){
+    const th=2*Math.atan(1/x);   // 弧与外圆交点
+    for(const s of [1,-1]){
+      const a=s*th;
+      ctx.fillText((s>0?"+j":"−j")+x, cx+Math.cos(a)*R*0.88-12, cy-Math.sin(a)*R*0.88+4);
+    }
+  }
+  return {cx, cy, R,
+    px:(re,im)=>[cx+re*R, cy-im*R]
+  };
+}
+
+/* ==== 仿真①：交互史密斯圆图 ==== */
+function zToGamma(z){ return cdiv(csub(z,[1,0]), cadd(z,[1,0])); }
+function updateSmith1(){
+  const R=+$("zr").value, X=+$("zx").value;
+  $("v_zr").textContent=R+" Ω";
+  $("v_zx").textContent=(X>=0?"+":"")+X+" Ω";
+  const z=[R/50, X/50], G=zToGamma(z);
+  const aG=cabs(G), vswr=aG>=1?Infinity:(1+aG)/(1-aG), rl=aG<=1e-9?Infinity:-20*Math.log10(aG);
+  const cv=setupCanvas("cv_smith1");
+  const S=smithBase(cv.ctx, cv.w, cv.h, true);
+  const [gx,gy]=S.px(G[0],G[1]);
+  // 等 VSWR 圆
+  cv.ctx.strokeStyle="#fbbf24"; cv.ctx.setLineDash([5,4]); cv.ctx.lineWidth=1.2;
+  cv.ctx.beginPath(); cv.ctx.arc(S.cx,S.cy,aG*S.R,0,7); cv.ctx.stroke();
+  cv.ctx.setLineDash([]);
+  // Γ 矢量
+  cv.ctx.strokeStyle="#38bdf8"; cv.ctx.lineWidth=1.5;
+  cv.ctx.beginPath(); cv.ctx.moveTo(S.cx,S.cy); cv.ctx.lineTo(gx,gy); cv.ctx.stroke();
+  // 匹配点
+  cv.ctx.fillStyle="#a3e635";
+  cv.ctx.beginPath(); cv.ctx.arc(S.cx,S.cy,4,0,7); cv.ctx.fill();
+  // 负载点
+  cv.ctx.fillStyle="#f472b6";
+  cv.ctx.beginPath(); cv.ctx.arc(gx,gy,6,0,7); cv.ctx.fill();
+  cv.ctx.fillStyle="#f472b6"; cv.ctx.font="11px Consolas";
+  cv.ctx.fillText("z_L="+(z[0].toFixed(2))+(z[1]>=0?"+j":"−j")+Math.abs(z[1]).toFixed(2), gx+8, gy-8);
+  const ang=Math.atan2(G[1],G[0])*180/Math.PI;
+  $("sm1_out").textContent =
+    "Z_L = "+R+(X>=0?"+j":"−j")+Math.abs(X)+" Ω ｜ z_L = "+z[0].toFixed(3)+(z[1]>=0?"+j":"−j")+Math.abs(z[1]).toFixed(3)+
+    " ｜ Γ = "+G[0].toFixed(3)+(G[1]>=0?" + j":" − j")+Math.abs(G[1]).toFixed(3)+
+    "（|Γ|="+aG.toFixed(3)+"，∠="+ang.toFixed(1)+"°）｜ VSWR = "+(isFinite(vswr)?vswr.toFixed(2):"∞")+
+    " ｜ RL = "+(isFinite(rl)?rl.toFixed(1)+" dB":"∞")+
+    (Math.abs(X)<1e-9?" ｜ 纯电阻负载，点在横轴上":(X>0?" ｜ 感性（上半平面）":" ｜ 容性（下半平面）"));
+}
+$("zr").addEventListener("input",updateSmith1);
+$("zx").addEventListener("input",updateSmith1);
+$("z_pre").addEventListener("change",e=>{
+  const [r,x]=e.target.value.split(",").map(Number);
+  $("zr").value=r; $("zx").value=x;
+  updateSmith1();
+});
+
+/* ==== 仿真②：L 网络综合器 ==== */
+function fmtL(x){ const u=[["mH",1e-3],["µH",1e-6],["nH",1e-9]]; for(const [p,s] of u) if(x>=s) return (x/s).toPrecision(3)+" "+p; return (x*1e9).toPrecision(3)+" nH"; }
+function fmtC(x){ const u=[["µF",1e-6],["nF",1e-9],["pF",1e-12]]; for(const [p,s] of u) if(x>=s) return (x/s).toPrecision(3)+" "+p; return (x*1e12).toPrecision(3)+" pF"; }
+function updateMatch(){
+  const fMHz=Math.pow(10,+$("m_f0").value), f0=fMHz*1e6;
+  const RLv=+$("m_rl").value, XLv=+$("m_xl").value;
+  $("v_f0").textContent = fMHz>=1000 ? (fMHz/1000).toFixed(3)+" GHz" : fMHz.toFixed(0)+" MHz";
+  $("v_rl").textContent=RLv+" Ω";
+  $("v_xl").textContent=(XLv>=0?"+":"")+XLv+" Ω";
+  const w0=2*Math.PI*f0;
+  const ZL=[RLv,XLv], Z0=50;
+  const YL=cdiv([1,0],ZL), G=YL[0], Bl=YL[1];
+  let topo, Xs, B, Q, zMid, note="";
+  if(G < 1/Z0 - 1e-9){
+    // 负载等效并联电阻 > 50Ω：并联元件靠负载 + 串联元件靠源
+    const t2=G/Z0-G*G;
+    const t=Math.sqrt(Math.max(t2,0));
+    B=t-Bl;                              // 并联元件电纳（+号 → 低通型优先）
+    const Zp=cdiv([1,0],[G, t]);         // Re=50，Im<0
+    Xs=-Zp[1];                           // 串联元件电抗（+号解必为正 → 电感）
+    Q = G>0 ? t/G : 0;
+    topo="A"; zMid=Zp;
+    note="并联元件靠负载（先把等效并联电阻拉到 50Ω），再串联元件抵消剩余电抗";
+  } else if(RLv < Z0){
+    // 负载串联电阻 < 50Ω：串联元件靠负载 + 并联元件靠源
+    const t=Math.sqrt(Math.max(Z0*RLv-RLv*RLv,0));
+    const Xa=t-XLv;                      // 串联元件电抗（+号 → 低通型优先）
+    const Z1=[RLv, t];
+    const Y1=cdiv([1,0],Z1);             // Re(Y1)=1/50
+    B=-Y1[1];                            // 并联元件电纳
+    Xs=Xa;
+    Q = RLv>0 ? t/RLv : 0;
+    topo="B"; zMid=Z1;
+    note="串联元件靠负载（把串联电阻变换到 50Ω），再并联元件抵消剩余电纳";
+  } else {
+    topo="M"; Xs=0; B=0; Q=0; zMid=[50,0];
+    note="该负载已等效为 50Ω，无需网络（或仅需抵消电抗）";
+  }
+  // 元件值
+  let serTxt, parTxt;
+  if(topo==="M"){ serTxt="—"; parTxt="—"; }
+  else{
+    serTxt = Xs>=0 ? "串联 L = "+fmtL(Xs/w0) : "串联 C = "+fmtC(1/(w0*Math.abs(Xs)));
+    parTxt = B>=0  ? "并联 C = "+fmtC(B/w0)  : "并联 L = "+fmtL(1/(w0*Math.abs(B)));
+  }
+  // 数值验证
+  let Zin=[NaN,NaN];
+  if(topo==="A"){
+    const Zc=cdiv([1,0],[0,B]);
+    const Zp=cdiv(cmul(ZL,Zc), cadd(ZL,Zc));
+    Zin=cadd(Zp,[0,Xs]);
+  } else if(topo==="B"){
+    const Z1=cadd(ZL,[0,Xs]);
+    const Y=cadd(cdiv([1,0],Z1),[0,B]);
+    Zin=cdiv([1,0],Y);
+  } else Zin=[RLv,0];
+
+  /* 左图：圆图轨迹 */
+  const cv=setupCanvas("cv_smith2");
+  const S=smithBase(cv.ctx, cv.w, cv.h, false);
+  const gL=zToGamma([ZL[0]/50, ZL[1]/50]);
+  const gM=zToGamma([zMid[0]/50, zMid[1]/50]);
+  const pL=S.px(gL[0],gL[1]), pM=S.px(gM[0],gM[1]);
+  cv.ctx.strokeStyle="#fbbf24"; cv.ctx.setLineDash([4,4]); cv.ctx.lineWidth=1.4;
+  cv.ctx.beginPath(); cv.ctx.moveTo(pL[0],pL[1]); cv.ctx.lineTo(pM[0],pM[1]);
+  cv.ctx.lineTo(S.cx,S.cy); cv.ctx.stroke();
+  cv.ctx.setLineDash([]);
+  cv.ctx.fillStyle="#f472b6"; cv.ctx.beginPath(); cv.ctx.arc(pL[0],pL[1],6,0,7); cv.ctx.fill();
+  cv.ctx.fillStyle="#fbbf24"; cv.ctx.beginPath(); cv.ctx.arc(pM[0],pM[1],5,0,7); cv.ctx.fill();
+  cv.ctx.fillStyle="#a3e635"; cv.ctx.beginPath(); cv.ctx.arc(S.cx,S.cy,5,0,7); cv.ctx.fill();
+  cv.ctx.font="11px Consolas";
+  cv.ctx.fillStyle="#f472b6"; cv.ctx.fillText("z_L", pL[0]+8, pL[1]-8);
+  cv.ctx.fillStyle="#fbbf24"; cv.ctx.fillText("中间点", pM[0]+8, pM[1]-8);
+  cv.ctx.fillStyle="#a3e635"; cv.ctx.fillText("50Ω ✓", S.cx+8, S.cy-10);
+
+  /* 右图：|Γ|–f 示意（在 f0 处精确为 0，带宽 ~f0/Q） */
+  const ar=setupCanvas("cv_arc");
+  drawGrid(ar.ctx,ar.w,ar.h,"频率偏移 ±(相对 f₀)","|Γ|");
+  const M=400, xs=[], ys=[];
+  const qEff=Math.max(Q,0.05);
+  for(let i=0;i<M;i++){
+    const df=-1+2*i/(M-1);            // -1..1 （× f0/Q 量级）
+    const f=f0*(1+df*qEff/2);
+    const Xs_f = topo==="M" ? 0 : (Xs>=0 ? Xs*(f/f0) : Xs*(f0/f));
+    const B_f  = topo==="M" ? 0 : (B>=0  ? B*(f/f0) : B*(f0/f));
+    let zin=[NaN,NaN];
+    if(topo==="A"){
+      const XLf=[ZL[0], ZL[1]*(f/f0)];
+      const Zc=cdiv([1,0],[0,B_f]);
+      const Zp=cdiv(cmul(XLf,Zc), cadd(XLf,Zc));
+      zin=cadd(Zp,[0,Xs_f]);
+    } else if(topo==="B"){
+      const XLf=[ZL[0], ZL[1]*(f/f0)];
+      const Z1=cadd(XLf,[0,Xs_f]);
+      const Y=cadd(cdiv([1,0],Z1),[0,B_f]);
+      zin=cdiv([1,0],Y);
+    } else zin=[ZL[0], ZL[1]*(f/f0)];
+    xs.push(df);
+    ys.push(cabs(zToGamma([zin[0]/50, zin[1]/50])));
+  }
+  plotXY(ar.ctx,xs,ys,-1,1,0,1,ar.w,ar.h,"#38bdf8",2);
+  ar.ctx.strokeStyle="#fbbf24"; ar.ctx.setLineDash([5,4]);
+  ar.ctx.beginPath(); ar.ctx.moveTo(0,0); ar.ctx.lineTo(0,ar.h); ar.ctx.stroke();
+  ar.ctx.setLineDash([]);
+  ar.ctx.fillStyle="#fbbf24"; ar.ctx.font="11px Consolas";
+  ar.ctx.fillText("f₀", 4, 16);
+
+  const bw = Q>1e-6 ? f0/Q : Infinity;
+  $("sm2_out").textContent =
+    "拓扑：" + (topo==="A"?"并联靠负载+串联靠源":topo==="B"?"串联靠负载+并联靠源":"无需匹配") + " —— "+note+
+    " ｜ "+serTxt+" + "+parTxt+" ｜ Q = "+Q.toFixed(3)+
+    " ｜ 估计带宽 ≈ "+(isFinite(bw)?fmt3(bw):"∞")+
+    " ｜ 验证：Z_in = "+Zin[0].toFixed(2)+(Zin[1]>=0?" + j":" − j")+Math.abs(Zin[1]).toFixed(2)+" Ω"+
+    (Math.abs(Zin[0]-50)<0.05&&Math.abs(Zin[1])<0.05?" ✓ 匹配成立":"");
+}
+function fmt3(x){
+  if(x>=1e9) return (x/1e9).toFixed(2)+" GHz";
+  if(x>=1e6) return (x/1e6).toFixed(2)+" MHz";
+  if(x>=1e3) return (x/1e3).toFixed(2)+" kHz";
+  return x.toFixed(2)+" Hz";
+}
+$("m_f0").addEventListener("input",updateMatch);
+$("m_rl").addEventListener("input",updateMatch);
+$("m_xl").addEventListener("input",updateMatch);
+
+function updateAll(){ updateSmith1(); updateMatch(); }
+window.addEventListener("resize",updateAll);
+updateAll();
+</script>
+
+<div class="qr-overlay" id="qrOverlay" hidden>
+  <div class="qr-card" role="dialog" aria-label="分享本页二维码">
+    <button class="qr-close" type="button" aria-label="关闭">✕</button>
+    <h3>📱 扫码分享本页</h3>
+    <canvas class="qr-canvas" id="qrCanvas" width="10" height="10"></canvas>
+    <div class="qr-url" id="qrUrl"></div>
+    <div class="qr-actions">
+      <button type="button" id="qrCopy">复制链接</button>
+      <a id="qrOpen" href="#" target="_blank" rel="noopener">在线打开</a>
+    </div>
+  </div>
+</div>
+
+<script>
+/* qrcode-generator 1.4.4 · (c) Kazuhiko Arase · MIT License · github.com/kazuhikoarase/qrcode-generator */
+/**
+ * Minified by jsDelivr using Terser v5.37.0.
+ * Original file: /npm/qrcode-generator@1.4.4/qrcode.js
+ *
+ * Do NOT use SRI with dynamically generated files! More information: https://www.jsdelivr.com/using-sri-with-dynamic-files
+ */
+var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],f={},c=function(t,r){o=function(t){for(var r=new Array(t),e=0;e<t;e+=1){r[e]=new Array(t);for(var n=0;n<t;n+=1)r[e][n]=null}return r}(i=4*e+17),l(0,0),l(i-7,0),l(0,i-7),s(),h(),d(t,r),e>=7&&v(t),null==a&&(a=p(e,n,u)),w(a,r)},l=function(t,r){for(var e=-1;e<=7;e+=1)if(!(t+e<=-1||i<=t+e))for(var n=-1;n<=7;n+=1)r+n<=-1||i<=r+n||(o[t+e][r+n]=0<=e&&e<=6&&(0==n||6==n)||0<=n&&n<=6&&(0==e||6==e)||2<=e&&e<=4&&2<=n&&n<=4)},h=function(){for(var t=8;t<i-8;t+=1)null==o[t][6]&&(o[t][6]=t%2==0);for(var r=8;r<i-8;r+=1)null==o[6][r]&&(o[6][r]=r%2==0)},s=function(){for(var t=B.getPatternPosition(e),r=0;r<t.length;r+=1)for(var n=0;n<t.length;n+=1){var i=t[r],a=t[n];if(null==o[i][a])for(var u=-2;u<=2;u+=1)for(var f=-2;f<=2;f+=1)o[i+u][a+f]=-2==u||2==u||-2==f||2==f||0==u&&0==f}},v=function(t){for(var r=B.getBCHTypeNumber(e),n=0;n<18;n+=1){var a=!t&&1==(r>>n&1);o[Math.floor(n/3)][n%3+i-8-3]=a}for(n=0;n<18;n+=1){a=!t&&1==(r>>n&1);o[n%3+i-8-3][Math.floor(n/3)]=a}},d=function(t,r){for(var e=n<<3|r,a=B.getBCHTypeInfo(e),u=0;u<15;u+=1){var f=!t&&1==(a>>u&1);u<6?o[u][8]=f:u<8?o[u+1][8]=f:o[i-15+u][8]=f}for(u=0;u<15;u+=1){f=!t&&1==(a>>u&1);u<8?o[8][i-u-1]=f:u<9?o[8][15-u-1+1]=f:o[8][15-u-1]=f}o[i-8][8]=!t},w=function(t,r){for(var e=-1,n=i-1,a=7,u=0,f=B.getMaskFunction(r),c=i-1;c>0;c-=2)for(6==c&&(c-=1);;){for(var g=0;g<2;g+=1)if(null==o[n][c-g]){var l=!1;u<t.length&&(l=1==(t[u]>>>a&1)),f(n,c-g)&&(l=!l),o[n][c-g]=l,-1==(a-=1)&&(u+=1,a=7)}if((n+=e)<0||i<=n){n-=e,e=-e;break}}},p=function(t,r,e){for(var n=A.getRSBlocks(t,r),o=b(),i=0;i<e.length;i+=1){var a=e[i];o.put(a.getMode(),4),o.put(a.getLength(),B.getLengthInBits(a.getMode(),t)),a.write(o)}var u=0;for(i=0;i<n.length;i+=1)u+=n[i].dataCount;if(o.getLengthInBits()>8*u)throw"code length overflow. ("+o.getLengthInBits()+">"+8*u+")";for(o.getLengthInBits()+4<=8*u&&o.put(0,4);o.getLengthInBits()%8!=0;)o.putBit(!1);for(;!(o.getLengthInBits()>=8*u||(o.put(236,8),o.getLengthInBits()>=8*u));)o.put(17,8);return function(t,r){for(var e=0,n=0,o=0,i=new Array(r.length),a=new Array(r.length),u=0;u<r.length;u+=1){var f=r[u].dataCount,c=r[u].totalCount-f;n=Math.max(n,f),o=Math.max(o,c),i[u]=new Array(f);for(var g=0;g<i[u].length;g+=1)i[u][g]=255&t.getBuffer()[g+e];e+=f;var l=B.getErrorCorrectPolynomial(c),h=k(i[u],l.getLength()-1).mod(l);for(a[u]=new Array(l.getLength()-1),g=0;g<a[u].length;g+=1){var s=g+h.getLength()-a[u].length;a[u][g]=s>=0?h.getAt(s):0}}var v=0;for(g=0;g<r.length;g+=1)v+=r[g].totalCount;var d=new Array(v),w=0;for(g=0;g<n;g+=1)for(u=0;u<r.length;u+=1)g<i[u].length&&(d[w]=i[u][g],w+=1);for(g=0;g<o;g+=1)for(u=0;u<r.length;u+=1)g<a[u].length&&(d[w]=a[u][g],w+=1);return d}(o,n)};f.addData=function(t,r){var e=null;switch(r=r||"Byte"){case"Numeric":e=M(t);break;case"Alphanumeric":e=x(t);break;case"Byte":e=m(t);break;case"Kanji":e=L(t);break;default:throw"mode:"+r}u.push(e),a=null},f.isDark=function(t,r){if(t<0||i<=t||r<0||i<=r)throw t+","+r;return o[t][r]},f.getModuleCount=function(){return i},f.make=function(){if(e<1){for(var t=1;t<40;t++){for(var r=A.getRSBlocks(t,n),o=b(),i=0;i<u.length;i++){var a=u[i];o.put(a.getMode(),4),o.put(a.getLength(),B.getLengthInBits(a.getMode(),t)),a.write(o)}var g=0;for(i=0;i<r.length;i++)g+=r[i].dataCount;if(o.getLengthInBits()<=8*g)break}e=t}c(!1,function(){for(var t=0,r=0,e=0;e<8;e+=1){c(!0,e);var n=B.getLostPoint(f);(0==e||t>n)&&(t=n,r=e)}return r}())},f.createTableTag=function(t,r){t=t||2;var e="";e+='<table style="',e+=" border-width: 0px; border-style: none;",e+=" border-collapse: collapse;",e+=" padding: 0px; margin: "+(r=void 0===r?4*t:r)+"px;",e+='">',e+="<tbody>";for(var n=0;n<f.getModuleCount();n+=1){e+="<tr>";for(var o=0;o<f.getModuleCount();o+=1)e+='<td style="',e+=" border-width: 0px; border-style: none;",e+=" border-collapse: collapse;",e+=" padding: 0px; margin: 0px;",e+=" width: "+t+"px;",e+=" height: "+t+"px;",e+=" background-color: ",e+=f.isDark(n,o)?"#000000":"#ffffff",e+=";",e+='"/>';e+="</tr>"}return e+="</tbody>",e+="</table>"},f.createSvgTag=function(t,r,e,n){var o={};"object"==typeof arguments[0]&&(t=(o=arguments[0]).cellSize,r=o.margin,e=o.alt,n=o.title),t=t||2,r=void 0===r?4*t:r,(e="string"==typeof e?{text:e}:e||{}).text=e.text||null,e.id=e.text?e.id||"qrcode-description":null,(n="string"==typeof n?{text:n}:n||{}).text=n.text||null,n.id=n.text?n.id||"qrcode-title":null;var i,a,u,c,g=f.getModuleCount()*t+2*r,l="";for(c="l"+t+",0 0,"+t+" -"+t+",0 0,-"+t+"z ",l+='<svg version="1.1" xmlns="http://www.w3.org/2000/svg"',l+=o.scalable?"":' width="'+g+'px" height="'+g+'px"',l+=' viewBox="0 0 '+g+" "+g+'" ',l+=' preserveAspectRatio="xMinYMin meet"',l+=n.text||e.text?' role="img" aria-labelledby="'+y([n.id,e.id].join(" ").trim())+'"':"",l+=">",l+=n.text?'<title id="'+y(n.id)+'">'+y(n.text)+"</title>":"",l+=e.text?'<description id="'+y(e.id)+'">'+y(e.text)+"</description>":"",l+='<rect width="100%" height="100%" fill="white" cx="0" cy="0"/>',l+='<path d="',a=0;a<f.getModuleCount();a+=1)for(u=a*t+r,i=0;i<f.getModuleCount();i+=1)f.isDark(a,i)&&(l+="M"+(i*t+r)+","+u+c);return l+='" stroke="transparent" fill="black"/>',l+="</svg>"},f.createDataURL=function(t,r){t=t||2,r=void 0===r?4*t:r;var e=f.getModuleCount()*t+2*r,n=r,o=e-r;return I(e,e,(function(r,e){if(n<=r&&r<o&&n<=e&&e<o){var i=Math.floor((r-n)/t),a=Math.floor((e-n)/t);return f.isDark(a,i)?0:1}return 1}))},f.createImgTag=function(t,r,e){t=t||2,r=void 0===r?4*t:r;var n=f.getModuleCount()*t+2*r,o="";return o+="<img",o+=' src="',o+=f.createDataURL(t,r),o+='"',o+=' width="',o+=n,o+='"',o+=' height="',o+=n,o+='"',e&&(o+=' alt="',o+=y(e),o+='"'),o+="/>"};var y=function(t){for(var r="",e=0;e<t.length;e+=1){var n=t.charAt(e);switch(n){case"<":r+="&lt;";break;case">":r+="&gt;";break;case"&":r+="&amp;";break;case'"':r+="&quot;";break;default:r+=n}}return r};return f.createASCII=function(t,r){if((t=t||1)<2)return function(t){t=void 0===t?2:t;var r,e,n,o,i,a=1*f.getModuleCount()+2*t,u=t,c=a-t,g={"██":"█","█ ":"▀"," █":"▄","  ":" "},l={"██":"▀","█ ":"▀"," █":" ","  ":" "},h="";for(r=0;r<a;r+=2){for(n=Math.floor((r-u)/1),o=Math.floor((r+1-u)/1),e=0;e<a;e+=1)i="█",u<=e&&e<c&&u<=r&&r<c&&f.isDark(n,Math.floor((e-u)/1))&&(i=" "),u<=e&&e<c&&u<=r+1&&r+1<c&&f.isDark(o,Math.floor((e-u)/1))?i+=" ":i+="█",h+=t<1&&r+1>=c?l[i]:g[i];h+="\n"}return a%2&&t>0?h.substring(0,h.length-a-1)+Array(a+1).join("▀"):h.substring(0,h.length-1)}(r);t-=1,r=void 0===r?2*t:r;var e,n,o,i,a=f.getModuleCount()*t+2*r,u=r,c=a-r,g=Array(t+1).join("██"),l=Array(t+1).join("  "),h="",s="";for(e=0;e<a;e+=1){for(o=Math.floor((e-u)/t),s="",n=0;n<a;n+=1)i=1,u<=n&&n<c&&u<=e&&e<c&&f.isDark(o,Math.floor((n-u)/t))&&(i=0),s+=i?g:l;for(o=0;o<t;o+=1)h+=s+"\n"}return h.substring(0,h.length-1)},f.renderTo2dContext=function(t,r){r=r||2;for(var e=f.getModuleCount(),n=0;n<e;n++)for(var o=0;o<e;o++)t.fillStyle=f.isDark(n,o)?"black":"white",t.fillRect(n*r,o*r,r,r)},f};t.stringToBytes=(t.stringToBytesFuncs={default:function(t){for(var r=[],e=0;e<t.length;e+=1){var n=t.charCodeAt(e);r.push(255&n)}return r}}).default,t.createStringToBytes=function(t,r){var e=function(){for(var e=S(t),n=function(){var t=e.read();if(-1==t)throw"eof";return t},o=0,i={};;){var a=e.read();if(-1==a)break;var u=n(),f=n()<<8|n();i[String.fromCharCode(a<<8|u)]=f,o+=1}if(o!=r)throw o+" != "+r;return i}(),n="?".charCodeAt(0);return function(t){for(var r=[],o=0;o<t.length;o+=1){var i=t.charCodeAt(o);if(i<128)r.push(i);else{var a=e[t.charAt(o)];"number"==typeof a?(255&a)==a?r.push(a):(r.push(a>>>8),r.push(255&a)):r.push(n)}}return r}};var r,e,n,o,i,a=1,u=2,f=4,c=8,g={L:1,M:0,Q:3,H:2},l=0,h=1,s=2,v=3,d=4,w=5,p=6,y=7,B=(r=[[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50],[6,30,54],[6,32,58],[6,34,62],[6,26,46,66],[6,26,48,70],[6,26,50,74],[6,30,54,78],[6,30,56,82],[6,30,58,86],[6,34,62,90],[6,28,50,72,94],[6,26,50,74,98],[6,30,54,78,102],[6,28,54,80,106],[6,32,58,84,110],[6,30,58,86,114],[6,34,62,90,118],[6,26,50,74,98,122],[6,30,54,78,102,126],[6,26,52,78,104,130],[6,30,56,82,108,134],[6,34,60,86,112,138],[6,30,58,86,114,142],[6,34,62,90,118,146],[6,30,54,78,102,126,150],[6,24,50,76,102,128,154],[6,28,54,80,106,132,158],[6,32,58,84,110,136,162],[6,26,54,82,110,138,166],[6,30,58,86,114,142,170]],e=1335,n=7973,i=function(t){for(var r=0;0!=t;)r+=1,t>>>=1;return r},(o={}).getBCHTypeInfo=function(t){for(var r=t<<10;i(r)-i(e)>=0;)r^=e<<i(r)-i(e);return 21522^(t<<10|r)},o.getBCHTypeNumber=function(t){for(var r=t<<12;i(r)-i(n)>=0;)r^=n<<i(r)-i(n);return t<<12|r},o.getPatternPosition=function(t){return r[t-1]},o.getMaskFunction=function(t){switch(t){case l:return function(t,r){return(t+r)%2==0};case h:return function(t,r){return t%2==0};case s:return function(t,r){return r%3==0};case v:return function(t,r){return(t+r)%3==0};case d:return function(t,r){return(Math.floor(t/2)+Math.floor(r/3))%2==0};case w:return function(t,r){return t*r%2+t*r%3==0};case p:return function(t,r){return(t*r%2+t*r%3)%2==0};case y:return function(t,r){return(t*r%3+(t+r)%2)%2==0};default:throw"bad maskPattern:"+t}},o.getErrorCorrectPolynomial=function(t){for(var r=k([1],0),e=0;e<t;e+=1)r=r.multiply(k([1,C.gexp(e)],0));return r},o.getLengthInBits=function(t,r){if(1<=r&&r<10)switch(t){case a:return 10;case u:return 9;case f:case c:return 8;default:throw"mode:"+t}else if(r<27)switch(t){case a:return 12;case u:return 11;case f:return 16;case c:return 10;default:throw"mode:"+t}else{if(!(r<41))throw"type:"+r;switch(t){case a:return 14;case u:return 13;case f:return 16;case c:return 12;default:throw"mode:"+t}}},o.getLostPoint=function(t){for(var r=t.getModuleCount(),e=0,n=0;n<r;n+=1)for(var o=0;o<r;o+=1){for(var i=0,a=t.isDark(n,o),u=-1;u<=1;u+=1)if(!(n+u<0||r<=n+u))for(var f=-1;f<=1;f+=1)o+f<0||r<=o+f||0==u&&0==f||a==t.isDark(n+u,o+f)&&(i+=1);i>5&&(e+=3+i-5)}for(n=0;n<r-1;n+=1)for(o=0;o<r-1;o+=1){var c=0;t.isDark(n,o)&&(c+=1),t.isDark(n+1,o)&&(c+=1),t.isDark(n,o+1)&&(c+=1),t.isDark(n+1,o+1)&&(c+=1),0!=c&&4!=c||(e+=3)}for(n=0;n<r;n+=1)for(o=0;o<r-6;o+=1)t.isDark(n,o)&&!t.isDark(n,o+1)&&t.isDark(n,o+2)&&t.isDark(n,o+3)&&t.isDark(n,o+4)&&!t.isDark(n,o+5)&&t.isDark(n,o+6)&&(e+=40);for(o=0;o<r;o+=1)for(n=0;n<r-6;n+=1)t.isDark(n,o)&&!t.isDark(n+1,o)&&t.isDark(n+2,o)&&t.isDark(n+3,o)&&t.isDark(n+4,o)&&!t.isDark(n+5,o)&&t.isDark(n+6,o)&&(e+=40);var g=0;for(o=0;o<r;o+=1)for(n=0;n<r;n+=1)t.isDark(n,o)&&(g+=1);return e+=Math.abs(100*g/r/r-50)/5*10},o),C=function(){for(var t=new Array(256),r=new Array(256),e=0;e<8;e+=1)t[e]=1<<e;for(e=8;e<256;e+=1)t[e]=t[e-4]^t[e-5]^t[e-6]^t[e-8];for(e=0;e<255;e+=1)r[t[e]]=e;var n={glog:function(t){if(t<1)throw"glog("+t+")";return r[t]},gexp:function(r){for(;r<0;)r+=255;for(;r>=256;)r-=255;return t[r]}};return n}();function k(t,r){if(void 0===t.length)throw t.length+"/"+r;var e=function(){for(var e=0;e<t.length&&0==t[e];)e+=1;for(var n=new Array(t.length-e+r),o=0;o<t.length-e;o+=1)n[o]=t[o+e];return n}(),n={getAt:function(t){return e[t]},getLength:function(){return e.length},multiply:function(t){for(var r=new Array(n.getLength()+t.getLength()-1),e=0;e<n.getLength();e+=1)for(var o=0;o<t.getLength();o+=1)r[e+o]^=C.gexp(C.glog(n.getAt(e))+C.glog(t.getAt(o)));return k(r,0)},mod:function(t){if(n.getLength()-t.getLength()<0)return n;for(var r=C.glog(n.getAt(0))-C.glog(t.getAt(0)),e=new Array(n.getLength()),o=0;o<n.getLength();o+=1)e[o]=n.getAt(o);for(o=0;o<t.getLength();o+=1)e[o]^=C.gexp(C.glog(t.getAt(o))+r);return k(e,0).mod(t)}};return n}var A=function(){var t=[[1,26,19],[1,26,16],[1,26,13],[1,26,9],[1,44,34],[1,44,28],[1,44,22],[1,44,16],[1,70,55],[1,70,44],[2,35,17],[2,35,13],[1,100,80],[2,50,32],[2,50,24],[4,25,9],[1,134,108],[2,67,43],[2,33,15,2,34,16],[2,33,11,2,34,12],[2,86,68],[4,43,27],[4,43,19],[4,43,15],[2,98,78],[4,49,31],[2,32,14,4,33,15],[4,39,13,1,40,14],[2,121,97],[2,60,38,2,61,39],[4,40,18,2,41,19],[4,40,14,2,41,15],[2,146,116],[3,58,36,2,59,37],[4,36,16,4,37,17],[4,36,12,4,37,13],[2,86,68,2,87,69],[4,69,43,1,70,44],[6,43,19,2,44,20],[6,43,15,2,44,16],[4,101,81],[1,80,50,4,81,51],[4,50,22,4,51,23],[3,36,12,8,37,13],[2,116,92,2,117,93],[6,58,36,2,59,37],[4,46,20,6,47,21],[7,42,14,4,43,15],[4,133,107],[8,59,37,1,60,38],[8,44,20,4,45,21],[12,33,11,4,34,12],[3,145,115,1,146,116],[4,64,40,5,65,41],[11,36,16,5,37,17],[11,36,12,5,37,13],[5,109,87,1,110,88],[5,65,41,5,66,42],[5,54,24,7,55,25],[11,36,12,7,37,13],[5,122,98,1,123,99],[7,73,45,3,74,46],[15,43,19,2,44,20],[3,45,15,13,46,16],[1,135,107,5,136,108],[10,74,46,1,75,47],[1,50,22,15,51,23],[2,42,14,17,43,15],[5,150,120,1,151,121],[9,69,43,4,70,44],[17,50,22,1,51,23],[2,42,14,19,43,15],[3,141,113,4,142,114],[3,70,44,11,71,45],[17,47,21,4,48,22],[9,39,13,16,40,14],[3,135,107,5,136,108],[3,67,41,13,68,42],[15,54,24,5,55,25],[15,43,15,10,44,16],[4,144,116,4,145,117],[17,68,42],[17,50,22,6,51,23],[19,46,16,6,47,17],[2,139,111,7,140,112],[17,74,46],[7,54,24,16,55,25],[34,37,13],[4,151,121,5,152,122],[4,75,47,14,76,48],[11,54,24,14,55,25],[16,45,15,14,46,16],[6,147,117,4,148,118],[6,73,45,14,74,46],[11,54,24,16,55,25],[30,46,16,2,47,17],[8,132,106,4,133,107],[8,75,47,13,76,48],[7,54,24,22,55,25],[22,45,15,13,46,16],[10,142,114,2,143,115],[19,74,46,4,75,47],[28,50,22,6,51,23],[33,46,16,4,47,17],[8,152,122,4,153,123],[22,73,45,3,74,46],[8,53,23,26,54,24],[12,45,15,28,46,16],[3,147,117,10,148,118],[3,73,45,23,74,46],[4,54,24,31,55,25],[11,45,15,31,46,16],[7,146,116,7,147,117],[21,73,45,7,74,46],[1,53,23,37,54,24],[19,45,15,26,46,16],[5,145,115,10,146,116],[19,75,47,10,76,48],[15,54,24,25,55,25],[23,45,15,25,46,16],[13,145,115,3,146,116],[2,74,46,29,75,47],[42,54,24,1,55,25],[23,45,15,28,46,16],[17,145,115],[10,74,46,23,75,47],[10,54,24,35,55,25],[19,45,15,35,46,16],[17,145,115,1,146,116],[14,74,46,21,75,47],[29,54,24,19,55,25],[11,45,15,46,46,16],[13,145,115,6,146,116],[14,74,46,23,75,47],[44,54,24,7,55,25],[59,46,16,1,47,17],[12,151,121,7,152,122],[12,75,47,26,76,48],[39,54,24,14,55,25],[22,45,15,41,46,16],[6,151,121,14,152,122],[6,75,47,34,76,48],[46,54,24,10,55,25],[2,45,15,64,46,16],[17,152,122,4,153,123],[29,74,46,14,75,47],[49,54,24,10,55,25],[24,45,15,46,46,16],[4,152,122,18,153,123],[13,74,46,32,75,47],[48,54,24,14,55,25],[42,45,15,32,46,16],[20,147,117,4,148,118],[40,75,47,7,76,48],[43,54,24,22,55,25],[10,45,15,67,46,16],[19,148,118,6,149,119],[18,75,47,31,76,48],[34,54,24,34,55,25],[20,45,15,61,46,16]],r=function(t,r){var e={};return e.totalCount=t,e.dataCount=r,e},e={};return e.getRSBlocks=function(e,n){var o=function(r,e){switch(e){case g.L:return t[4*(r-1)+0];case g.M:return t[4*(r-1)+1];case g.Q:return t[4*(r-1)+2];case g.H:return t[4*(r-1)+3];default:return}}(e,n);if(void 0===o)throw"bad rs block @ typeNumber:"+e+"/errorCorrectionLevel:"+n;for(var i=o.length/3,a=[],u=0;u<i;u+=1)for(var f=o[3*u+0],c=o[3*u+1],l=o[3*u+2],h=0;h<f;h+=1)a.push(r(c,l));return a},e}(),b=function(){var t=[],r=0,e={getBuffer:function(){return t},getAt:function(r){var e=Math.floor(r/8);return 1==(t[e]>>>7-r%8&1)},put:function(t,r){for(var n=0;n<r;n+=1)e.putBit(1==(t>>>r-n-1&1))},getLengthInBits:function(){return r},putBit:function(e){var n=Math.floor(r/8);t.length<=n&&t.push(0),e&&(t[n]|=128>>>r%8),r+=1}};return e},M=function(t){var r=a,e=t,n={getMode:function(){return r},getLength:function(t){return e.length},write:function(t){for(var r=e,n=0;n+2<r.length;)t.put(o(r.substring(n,n+3)),10),n+=3;n<r.length&&(r.length-n==1?t.put(o(r.substring(n,n+1)),4):r.length-n==2&&t.put(o(r.substring(n,n+2)),7))}},o=function(t){for(var r=0,e=0;e<t.length;e+=1)r=10*r+i(t.charAt(e));return r},i=function(t){if("0"<=t&&t<="9")return t.charCodeAt(0)-"0".charCodeAt(0);throw"illegal char :"+t};return n},x=function(t){var r=u,e=t,n={getMode:function(){return r},getLength:function(t){return e.length},write:function(t){for(var r=e,n=0;n+1<r.length;)t.put(45*o(r.charAt(n))+o(r.charAt(n+1)),11),n+=2;n<r.length&&t.put(o(r.charAt(n)),6)}},o=function(t){if("0"<=t&&t<="9")return t.charCodeAt(0)-"0".charCodeAt(0);if("A"<=t&&t<="Z")return t.charCodeAt(0)-"A".charCodeAt(0)+10;switch(t){case" ":return 36;case"$":return 37;case"%":return 38;case"*":return 39;case"+":return 40;case"-":return 41;case".":return 42;case"/":return 43;case":":return 44;default:throw"illegal char :"+t}};return n},m=function(r){var e=f,n=t.stringToBytes(r),o={getMode:function(){return e},getLength:function(t){return n.length},write:function(t){for(var r=0;r<n.length;r+=1)t.put(n[r],8)}};return o},L=function(r){var e=c,n=t.stringToBytesFuncs.SJIS;if(!n)throw"sjis not supported.";!function(){var t=n("友");if(2!=t.length||38726!=(t[0]<<8|t[1]))throw"sjis not supported."}();var o=n(r),i={getMode:function(){return e},getLength:function(t){return~~(o.length/2)},write:function(t){for(var r=o,e=0;e+1<r.length;){var n=(255&r[e])<<8|255&r[e+1];if(33088<=n&&n<=40956)n-=33088;else{if(!(57408<=n&&n<=60351))throw"illegal char at "+(e+1)+"/"+n;n-=49472}n=192*(n>>>8&255)+(255&n),t.put(n,13),e+=2}if(e<r.length)throw"illegal char at "+(e+1)}};return i},D=function(){var t=[],r={writeByte:function(r){t.push(255&r)},writeShort:function(t){r.writeByte(t),r.writeByte(t>>>8)},writeBytes:function(t,e,n){e=e||0,n=n||t.length;for(var o=0;o<n;o+=1)r.writeByte(t[o+e])},writeString:function(t){for(var e=0;e<t.length;e+=1)r.writeByte(t.charCodeAt(e))},toByteArray:function(){return t},toString:function(){var r="";r+="[";for(var e=0;e<t.length;e+=1)e>0&&(r+=","),r+=t[e];return r+="]"}};return r},S=function(t){var r=t,e=0,n=0,o=0,i={read:function(){for(;o<8;){if(e>=r.length){if(0==o)return-1;throw"unexpected end of file./"+o}var t=r.charAt(e);if(e+=1,"="==t)return o=0,-1;t.match(/^\s$/)||(n=n<<6|a(t.charCodeAt(0)),o+=6)}var i=n>>>o-8&255;return o-=8,i}},a=function(t){if(65<=t&&t<=90)return t-65;if(97<=t&&t<=122)return t-97+26;if(48<=t&&t<=57)return t-48+52;if(43==t)return 62;if(47==t)return 63;throw"c:"+t};return i},I=function(t,r,e){for(var n=function(t,r){var e=t,n=r,o=new Array(t*r),i={setPixel:function(t,r,n){o[r*e+t]=n},write:function(t){t.writeString("GIF87a"),t.writeShort(e),t.writeShort(n),t.writeByte(128),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(255),t.writeByte(255),t.writeByte(255),t.writeString(","),t.writeShort(0),t.writeShort(0),t.writeShort(e),t.writeShort(n),t.writeByte(0);var r=a(2);t.writeByte(2);for(var o=0;r.length-o>255;)t.writeByte(255),t.writeBytes(r,o,255),o+=255;t.writeByte(r.length-o),t.writeBytes(r,o,r.length-o),t.writeByte(0),t.writeString(";")}},a=function(t){for(var r=1<<t,e=1+(1<<t),n=t+1,i=u(),a=0;a<r;a+=1)i.add(String.fromCharCode(a));i.add(String.fromCharCode(r)),i.add(String.fromCharCode(e));var f,c,g,l=D(),h=(f=l,c=0,g=0,{write:function(t,r){if(t>>>r!=0)throw"length over";for(;c+r>=8;)f.writeByte(255&(t<<c|g)),r-=8-c,t>>>=8-c,g=0,c=0;g|=t<<c,c+=r},flush:function(){c>0&&f.writeByte(g)}});h.write(r,n);var s=0,v=String.fromCharCode(o[s]);for(s+=1;s<o.length;){var d=String.fromCharCode(o[s]);s+=1,i.contains(v+d)?v+=d:(h.write(i.indexOf(v),n),i.size()<4095&&(i.size()==1<<n&&(n+=1),i.add(v+d)),v=d)}return h.write(i.indexOf(v),n),h.write(e,n),h.flush(),l.toByteArray()},u=function(){var t={},r=0,e={add:function(n){if(e.contains(n))throw"dup key:"+n;t[n]=r,r+=1},size:function(){return r},indexOf:function(r){return t[r]},contains:function(r){return void 0!==t[r]}};return e};return i}(t,r),o=0;o<r;o+=1)for(var i=0;i<t;i+=1)n.setPixel(i,o,e(i,o));var a=D();n.write(a);for(var u=function(){var t=0,r=0,e=0,n="",o={},i=function(t){n+=String.fromCharCode(a(63&t))},a=function(t){if(t<0);else{if(t<26)return 65+t;if(t<52)return t-26+97;if(t<62)return t-52+48;if(62==t)return 43;if(63==t)return 47}throw"n:"+t};return o.writeByte=function(n){for(t=t<<8|255&n,r+=8,e+=1;r>=6;)i(t>>>r-6),r-=6},o.flush=function(){if(r>0&&(i(t<<6-r),t=0,r=0),e%3!=0)for(var o=3-e%3,a=0;a<o;a+=1)n+="="},o.toString=function(){return n},o}(),f=a.toByteArray(),c=0;c<f.length;c+=1)u.writeByte(f[c]);return u.flush(),"data:image/gif;base64,"+u};return t}();qrcode.stringToBytesFuncs["UTF-8"]=function(t){return function(t){for(var r=[],e=0;e<t.length;e++){var n=t.charCodeAt(e);n<128?r.push(n):n<2048?r.push(192|n>>6,128|63&n):n<55296||n>=57344?r.push(224|n>>12,128|n>>6&63,128|63&n):(e++,n=65536+((1023&n)<<10|1023&t.charCodeAt(e)),r.push(240|n>>18,128|n>>12&63,128|n>>6&63,128|63&n))}return r}(t)},function(t){"function"==typeof define&&define.amd?define([],t):"object"==typeof exports&&(module.exports=t())}((function(){return qrcode}));
+//# sourceMappingURL=/sm/26b4b0d0b1e283d6b3ec9857ac597d7a60c76ac17be1ef4c965f03086de426bb.map
+</script>
+<script>
+(function(){
+"use strict";
+var overlay=document.getElementById("qrOverlay");
+var btn=document.querySelector(".share-bar .share-btn");
+if(!overlay||!btn)return;
+var url=btn.getAttribute("data-url")||location.href;
+document.getElementById("qrUrl").textContent=url;
+document.getElementById("qrOpen").href=url;
+function drawQR(){
+  var qr=qrcode(0,"M");qr.addData(url);qr.make();
+  var n=qr.getModuleCount(),Q=4,mod=3,W=(n+2*Q)*mod,dpr=window.devicePixelRatio||1;
+  var cv=document.getElementById("qrCanvas");
+  cv.style.width=W+"px";cv.style.height=W+"px";
+  cv.width=Math.round(W*dpr);cv.height=Math.round(W*dpr);
+  var ctx=cv.getContext("2d");
+  ctx.fillStyle="#fff";ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.fillStyle="#0d1117";
+  for(var r=0;r<n;r++)for(var c=0;c<n;c++)if(qr.isDark(r,c))
+    ctx.fillRect((Q+c)*mod*dpr,(Q+r)*mod*dpr,mod*dpr,mod*dpr);
+}
+btn.addEventListener("click",function(){overlay.hidden=false;drawQR();});
+function close(){overlay.hidden=true;}
+overlay.addEventListener("click",function(e){if(e.target===overlay)close();});
+overlay.querySelector(".qr-close").addEventListener("click",close);
+document.addEventListener("keydown",function(e){if(e.key==="Escape"&&!overlay.hidden)close();});
+var copyBtn=document.getElementById("qrCopy");
+copyBtn.addEventListener("click",function(){
+  function done(){copyBtn.textContent="已复制 ✓";setTimeout(function(){copyBtn.textContent="复制链接";},1500);}
+  function fallback(){
+    var ta=document.createElement("textarea");ta.value=url;
+    ta.style.position="fixed";ta.style.opacity="0";
+    document.body.appendChild(ta);ta.select();
+    try{document.execCommand("copy");}catch(e){}
+    document.body.removeChild(ta);done();
+  }
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(url).then(done,fallback);
+  }else{fallback();}
+});
+})();
+</script>
+</body>
+</html>

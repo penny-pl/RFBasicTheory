@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PLL 与相位噪声 — 射频 · RF Tools</title>
+<style>
+:root{
+  --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --border:#2d3748;
+  --text:#e2e8f0; --dim:#94a3b8; --accent:#38bdf8; --accent2:#f472b6;
+  --accent3:#a3e635; --warn:#fbbf24; --grid:#22304a;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;line-height:1.7;padding:0 0 60px}
+header{background:linear-gradient(135deg,#0f2027,#16213e);border-bottom:1px solid var(--border);padding:28px 24px}
+header h1{font-size:26px;color:var(--accent)}
+header p{color:var(--dim);margin-top:6px;font-size:14px}
+.back{display:inline-block;margin-bottom:10px;color:var(--dim);text-decoration:none;font-size:13px}
+.back:hover{color:var(--accent)}
+.crumb{font-family:Consolas,monospace;font-size:12px;color:var(--accent3);margin-bottom:6px}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+h2{font-size:20px;color:var(--accent);margin:38px 0 14px;padding-left:12px;border-left:4px solid var(--accent)}
+h3{font-size:16px;color:var(--accent2);margin:0 0 8px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px 18px;font-size:14px}
+.card b{color:var(--accent3)}
+.formula{display:inline-block;background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:2px 10px;margin:4px 0;font-family:Consolas,monospace;color:var(--warn);font-size:14px}
+.sim{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px;margin-top:16px}
+.sim .desc{color:var(--dim);font-size:13px;margin-bottom:12px}
+.controls{display:flex;flex-wrap:wrap;gap:16px 26px;margin-bottom:14px}
+.ctrl{display:flex;flex-direction:column;font-size:13px;color:var(--dim);min-width:180px}
+.ctrl label{display:flex;justify-content:space-between;margin-bottom:4px}
+.ctrl label span{color:var(--accent);font-family:Consolas,monospace}
+input[type=range]{width:200px;accent-color:var(--accent)}
+select{background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:13px}
+canvas{display:block;width:100%;background:#0a0e14;border:1px solid var(--border);border-radius:8px}
+.canvas-pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:760px){.canvas-pair{grid-template-columns:1fr}}
+.readout{font-family:Consolas,monospace;font-size:14px;color:var(--accent3);background:var(--panel2);border-radius:6px;padding:8px 14px;margin-top:10px;display:inline-block}
+.legend{font-size:12px;color:var(--dim);margin-top:6px}
+.legend i{display:inline-block;width:18px;height:3px;vertical-align:middle;margin:0 6px 2px 12px;border-radius:2px}
+.arch{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:10px 0;font-size:13px}
+.arch .blk{background:var(--panel2);border:1px solid var(--accent);border-radius:8px;padding:8px 12px;text-align:center}
+.arch .blk small{display:block;color:var(--dim);font-size:11px}
+.arch .arr{color:var(--accent);font-weight:bold}
+.arch .fb{width:100%;color:var(--dim);font-size:12px;text-align:center}
+.pitfall{border-left:4px solid var(--warn);padding:10px 14px;margin:8px 0;background:var(--panel2);border-radius:6px;font-size:14px}
+.pitfall b{color:var(--warn)}
+.related{font-size:13px;color:var(--dim);margin-top:26px}
+.related a{color:var(--accent3);text-decoration:none}
+.related a:hover{color:var(--accent)}
+.pager{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:10px 18px;margin-top:42px;font-size:13px}
+.pager a{color:var(--accent);text-decoration:none}
+.pager a:hover{color:var(--accent2)}
+.pager .mid{color:var(--dim)}
+footer{text-align:center;color:#475569;font-size:12px;margin-top:50px}
+
+/* ==== 分享二维码入口 ==== */
+.share-bar{text-align:center;margin:28px 0 8px}
+.share-btn{background:var(--panel2);color:var(--accent);border:1px solid var(--border);border-radius:10px;padding:8px 24px;font-size:14px;font-family:inherit;cursor:pointer;transition:border-color .15s}
+.share-btn:hover{border-color:var(--accent)}
+.qr-overlay{position:fixed;inset:0;background:rgba(3,6,12,.8);display:flex;align-items:center;justify-content:center;z-index:99}
+.qr-overlay[hidden]{display:none}
+.qr-card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:26px 28px 22px;max-width:340px;width:calc(100% - 48px);text-align:center;position:relative}
+.qr-card h3{font-size:16px;margin-bottom:14px}
+.qr-canvas{background:#fff;border-radius:8px;display:block;margin:0 auto 12px}
+.qr-url{color:var(--dim);font-size:11.5px;word-break:break-all;line-height:1.5;margin-bottom:14px}
+.qr-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.qr-actions button,.qr-actions a{background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:7px 16px;font-size:13px;font-family:inherit;cursor:pointer;text-decoration:none;display:inline-block}
+.qr-actions a{color:var(--accent)}
+.qr-close{position:absolute;top:8px;right:12px;background:none;border:none;color:var(--dim);font-size:20px;cursor:pointer;line-height:1;padding:4px}
+.qr-close:hover{color:var(--text)}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="back" href="../index.html">← 返回工具首页</a>
+    <div class="crumb">RF · 07 / 07 · 射频</div>
+    <h1>PLL 与相位噪声</h1>
+    <p>锁相、环路带宽的权衡、dBc/Hz 的裙边 —— 频率合成的两大命门</p>
+  </div>
+</header>
+<div class="wrap">
+
+<h2>一、理论要点</h2>
+<div class="cards">
+  <div class="card" style="grid-column:1/-1">
+    <h3>1. PLL 是什么：一个相位反馈系统</h3>
+    锁相环让 VCO 的输出相位<b>死死盯住</b>参考晶振的相位，从而得到"晶振级稳定度的任意频率"。四个部件构成闭环：
+    <div class="arch">
+      <div class="blk">参考晶振<small>f<sub>ref</sub>，如 10 MHz</small></div><span class="arr">→</span>
+      <div class="blk">鉴相器 PD<small>比较相位差</small></div><span class="arr">→</span>
+      <div class="blk">环路滤波器 LF<small>决定动态性能</small></div><span class="arr">→</span>
+      <div class="blk">VCO<small>电压→频率</small></div><span class="arr">→ 输出</span>
+      <div class="fb">←—————— ÷N 分频器（反馈支路）←——————</div>
+    </div>
+    相位差 → 误差电压 → 修正 VCO 频率 → 相位差缩小……直到锁定（相位差恒定、频率精确相等）。
+  </div>
+  <div class="card">
+    <h3>2. 鉴相器（PFD + 电荷泵）</h3>
+    把两个信号的<b>相位差</b>转换为误差信号。频率合成器标配<b>鉴频鉴相器 PFD</b>：带电荷泵，失锁时还能指示频率偏移方向帮助捕获，锁定后相位误差可压到零附近。
+  </div>
+  <div class="card">
+    <h3>3. 环路滤波器：PLL 的"大脑"</h3>
+    一阶环必留静态相位误差，主流是<b>比例+积分（PI）</b>二阶环：<br>
+    <span class="formula">F(s) = K<sub>p</sub> + K<sub>i</sub>/s</span><br>
+    积分支路"记住"并消除频率误差（锁定后相位误差→0），比例支路提供阻尼。
+  </div>
+  <div class="card">
+    <h3>4. 阻尼 ζ 与环路带宽 ω<sub>n</sub></h3>
+    二阶环的动态完全由这两个参数决定：<b>ζ&lt;1</b> 欠阻尼（快但振铃），<b>ζ≈0.7</b> 常用折中，<b>ζ&gt;1</b> 过阻尼（稳但慢）。锁定时间量级：<br>
+    <span class="formula">t<sub>lock</sub> ≈ 4/(ζ·ω<sub>n</sub>)</span><br>
+    仿真①直接演示这三种形态。
+  </div>
+  <div class="card">
+    <h3>5. 环路带宽的两难</h3>
+    带宽<b>以内</b>：输出跟随参考噪声（恶化 20·lgN）；带宽<b>以外</b>：只剩 VCO 自身噪声。<b>带宽窄</b>→杂散抑制好、锁定慢、压不住 VCO 近端噪声；<b>带宽宽</b>→锁定快、但参考噪声与杂散混进来。最优带宽通常取两条噪声曲线交点附近——仿真②看得很清楚。
+  </div>
+  <div class="card">
+    <h3>6. 整数 N 与小数 N 分频</h3>
+    <span class="formula">f<sub>out</sub> = N × f<sub>ref</sub></span><br>
+    整数 N 的频率步进被 f<sub>ref</sub> 锁死（要小步进就得降 f<sub>ref</sub>，环路带宽跟着受累）。<b>小数 N</b>用 Σ-Δ 调制快速抖动 N 值实现分数倍分频，步进任意小，代价是量化杂散（需更强的环路滤波/补偿）。
+  </div>
+  <div class="card">
+    <h3>7. 相位噪声：理想谱线并不存在</h3>
+    理想本振是一根无限细的谱线，实际本振相位随机抖动，谱线两侧出现"裙边"——<b>相位噪声 L(f)</b>，单位 <b>dBc/Hz</b>（偏离载频 f 处 1Hz 带宽内的功率 / 载波功率）。它决定：发射 EVM、接收机抗强邻道（倒易混频）、雷达测速精度、高采样率 ADC 的时钟抖动。
+  </div>
+  <div class="card">
+    <h3>8. 裙边的形状</h3>
+    典型曲线分段：近端 <b>1/f³</b> 闪烁区（−30 dB/dec）→ 中段 −20 dB/dec 环路区 → 远端平坦噪底。闭环 PLL 在带宽内呈现"参考×20lgN 的平台"，带宽外跟随 VCO。整体 = 两条曲线按环路传递函数加权取优——<b>PLL 自动选择两个噪声源中较好的那个</b>。
+  </div>
+  <div class="card">
+    <h3>9. 积分相噪 → RMS 抖动</h3>
+    <span class="formula">σ<sub>φ</sub> = √(2∫L(f)df) rad，t<sub>jitter</sub> = σ<sub>φ</sub>/2πf₀</span><br>
+    把 dBc/Hz 曲线在指定频段（如 12 kHz~20 MHz）积分，得到 RMS 相位抖动（rad），再除以 2πf₀ 换算成秒/皮秒——这是 ADC 时钟与光通信最关心的单一指标。
+  </div>
+</div>
+
+<h2>二、仿真 ①：PLL 锁定过程瞬态仿真</h2>
+<div class="sim">
+  <div class="desc">对"PD(增益1) → PI 环路滤波器 → VCO(增益1) → ÷N"的二阶环做逐点数值仿真。VCO 自由振荡频率故意偏开 1%，观察闭环如何把它<b>拉入锁定</b>。默认 ζ=0.7：可看到轻微过冲后收敛；把 ζ 调小看振铃加剧，调大看过阻尼迟缓；调环路带宽看锁定快慢。</div>
+  <div class="controls">
+    <div class="ctrl"><label>分频比 N <span id="v_plln">64</span></label>
+      <input type="range" id="pll_n" min="10" max="100" step="1" value="64"></div>
+    <div class="ctrl"><label>阻尼系数 ζ <span id="v_pllz">0.70</span></label>
+      <input type="range" id="pll_z" min="0.2" max="2" step="0.05" value="0.7"></div>
+    <div class="ctrl"><label>环路带宽 f<sub>n</sub> <span id="v_pllfn">100 kHz</span></label>
+      <input type="range" id="pll_fn" min="20" max="500" step="10" value="100"></div>
+  </div>
+  <div class="canvas-pair">
+    <div><canvas id="cv_pllerr" height="240"></canvas>
+      <div class="legend"><i style="background:var(--accent2)"></i>相位误差（rad，折回 ±π）——锁定后趋于恒定（积分支路把它压向 0）</div></div>
+    <div><canvas id="cv_pllfreq" height="240"></canvas>
+      <div class="legend"><i style="background:var(--accent)"></i>VCO 频率 <i style="background:var(--warn)"></i>目标 N×f<sub>ref</sub>（虚线）</div></div>
+  </div>
+  <div class="readout" id="pll_out"></div>
+</div>
+
+<h2>三、仿真 ②：相位噪声谱与积分抖动</h2>
+<div class="sim">
+  <div class="desc">对数-对数坐标画闭环相位噪声 L(f)：绿色实线=闭环结果；灰虚线=VCO 自由振荡噪声（带宽外起作用）；粉点线=参考噪声×20lgN（带宽内起作用）。闭环曲线 = 两者按环路低通/高通加权<b>取更优</b>——带宽内贴参考平台，带宽外贴 VCO。黄色竖线为环路带宽。调 N 看平台抬高 20lgN，调带宽看交点移动；读数给出 12 kHz~20 MHz 积分的 RMS 抖动。</div>
+  <div class="controls">
+    <div class="ctrl"><label>分频比 N <span id="v_pnn">64</span></label>
+      <input type="range" id="pn_n" min="10" max="1000" step="1" value="64"></div>
+    <div class="ctrl"><label>环路带宽 f<sub>L</sub> <span id="v_pnfl">316 kHz</span></label>
+      <input type="range" id="pn_fl" min="4" max="7" step="0.05" value="5.5"><!-- log10 Hz --></div>
+    <div class="ctrl"><label>VCO @1MHz 偏移 <span id="v_pnvco">-130 dBc/Hz</span></label>
+      <input type="range" id="pn_vco" min="-150" max="-100" step="1" value="-130"></div>
+    <div class="ctrl"><label>参考晶振噪底 <span id="v_pnref">-165 dBc/Hz</span></label>
+      <input type="range" id="pn_ref" min="-180" max="-150" step="1" value="-165"></div>
+  </div>
+  <canvas id="cv_pn" height="300"></canvas>
+  <div class="legend"><i style="background:var(--accent3)"></i>闭环 L(f) <i style="background:#475569"></i>VCO 自由振荡 <i style="background:var(--accent2)"></i>参考×20lgN <i style="background:var(--warn)"></i>环路带宽 f_L</div>
+  <div class="readout" id="pn_out"></div>
+</div>
+
+<h2>四、小结与常见误区</h2>
+<div class="card">
+  <b>要点回顾：</b>① PLL=相位负反馈：PFD→环路滤波器→VCO→÷N；② PI 二阶环锁定后相位误差→0；③ ζ≈0.7、t<sub>lock</sub>≈4/(ζω<sub>n</sub>)；④ 带宽内噪声=参考×20lgN，带宽外=VCO，最优带宽≈两曲线交点；⑤ 整数 N 步进=f<sub>ref</sub>，小数 N 靠 Σ-Δ 换小步进；⑥ L(f) 单位 dBc/Hz，裙边分段 1/f³→−20dB/dec→噪底；⑦ 积分相噪→RMS 抖动 σ<sub>φ</sub>/2πf₀。
+</div>
+<div class="pitfall"><b>误区："PLL 把 VCO 的相位噪声消除了"。</b>只是在<b>环路带宽内</b>用（倍频恶化的）参考噪声替换了 VCO 噪声；带宽外 VCO 原样保留。若参考质量差、N 又大，锁相反而让近端噪声变差——带宽选择就是在两个噪声源之间"择优"。</div>
+<div class="pitfall"><b>误区："比抖动就看某个频点的 dBc/Hz"。</b>抖动是<b>整条曲线的积分</b>：不同器件积分区间不同（12 kHz~20 MHz 是光通信习惯，1~20 MHz 常见于时钟芯片），单点值既不唯一也不可比。读 datasheet 必须先看积分条件。</div>
+<div class="pitfall"><b>误区："小数 N 分频免费提高频率分辨率"。</b>小数分频靠 Σ-Δ 抖动 N 值实现，瞬时相位误差注入环路 → 量化杂散。要压杂散就得更高过采样阶数与更讲究的环路滤波设计——"任意小步进"是有账单的。</div>
+
+<div class="related">延伸阅读：<a href="../FMCW/04-chirp参数设计.html">《chirp 参数设计》</a>——毫米波雷达的扫频源就是 PLL；<a href="06-非线性与动态范围.html">《非线性与动态范围》</a>——本振相位噪声如何通过倒易混频毁掉邻道抑制；<a href="../SDR/01-SDR概念与架构.html">《SDR 概念与架构》</a>——本振在接收机里的位置。</div>
+
+<div class="pager">
+  <a href="06-非线性与动态范围.html">← 上一篇：非线性与动态范围</a>
+  <a class="mid" href="../index.html">返回首页</a>
+  <span></span>
+</div>
+</div>
+
+<div class="share-bar"><button class="share-btn" type="button" data-url="https://gitee.com/penneypl/rftools/blob/master/RF/07-PLL%E4%B8%8E%E7%9B%B8%E4%BD%8D%E5%99%AA%E5%A3%B0.html">📱 分享本页</button></div>
+<footer>rftools · 射频 07/07 · 纯本地单文件，无外部依赖</footer>
+
+<script>
+"use strict";
+/* ==== 公共：Canvas 绘图 ==== */
+function setupCanvas(id){
+  const cv = document.getElementById(id);
+  const dpr = window.devicePixelRatio||1;
+  const w = cv.clientWidth, h = cv.height;
+  cv.width = w*dpr; cv.height = h*dpr;
+  const ctx = cv.getContext("2d");
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  return {ctx, w, h};
+}
+function drawGrid(ctx,w,h,xLabel,yLabel){
+  ctx.clearRect(0,0,w,h);
+  ctx.strokeStyle="#22304a"; ctx.lineWidth=1; ctx.beginPath();
+  for(let i=1;i<10;i++){ ctx.moveTo(w*i/10,0); ctx.lineTo(w*i/10,h); }
+  for(let i=1;i<5;i++){ ctx.moveTo(0,h*i/5); ctx.lineTo(w,h*i/5); }
+  ctx.stroke();
+  ctx.fillStyle="#64748b"; ctx.font="11px Consolas";
+  if(xLabel) ctx.fillText(xLabel, w-ctx.measureText(xLabel).width-6, h-6);
+  if(yLabel) ctx.fillText(yLabel, 6, 14);
+}
+function plotXY(ctx, xs, ys, xa,xb, ya,yb, w,h, color, lw){
+  ctx.strokeStyle=color; ctx.lineWidth=lw||1.5; ctx.beginPath();
+  let started=false;
+  for(let i=0;i<xs.length;i++){
+    const X=(xs[i]-xa)/(xb-xa)*w, Y=h-(ys[i]-ya)/(yb-ya)*h;
+    if(X<0||X>w||Y<-80||Y>h+80){ started=false; continue; }
+    if(!started){ ctx.moveTo(X,Y); started=true; } else ctx.lineTo(X,Y);
+  }
+  ctx.stroke();
+}
+const $ = id => document.getElementById(id);
+
+/* ==== 仿真①：PLL 锁定过程 ==== */
+function updatePLL(){
+  const fref=10e6, N=+$("pll_n").value, zeta=+$("pll_z").value, fn=+$("pll_fn").value*1e3;
+  $("v_plln").textContent=N;
+  $("v_pllz").textContent=zeta.toFixed(2);
+  $("v_pllfn").textContent=(fn/1e3)+" kHz";
+  const wn=2*Math.PI*fn;
+  const Kp=2*zeta*wn*N, Ki=wn*wn*N;
+  const fTarget=N*fref;
+  let fVco=fTarget*0.99;
+  const Tsettle=5/(zeta*wn);
+  const M=2500, dt=Tsettle/M;
+  let phiRef=0, phiVco=0, integ=0;
+  const ts=[], err=[], fr=[];
+  for(let i=0;i<M;i++){
+    phiRef+=2*Math.PI*fref*dt;
+    phiVco+=2*Math.PI*fVco*dt;
+    let e=(phiRef-phiVco/N)%(2*Math.PI);
+    if(e>Math.PI) e-=2*Math.PI; if(e<-Math.PI) e+=2*Math.PI;
+    integ+=Ki*e*dt;
+    const vc=Kp*e+integ;
+    fVco=fTarget*0.99+vc/(2*Math.PI);
+    ts.push(i*dt*1e6); err.push(e); fr.push(fVco/1e6);
+  }
+  const c1=setupCanvas("cv_pllerr");
+  drawGrid(c1.ctx,c1.w,c1.h,"时间 µs","相位误差 rad");
+  plotXY(c1.ctx,ts,err,0,Tsettle*1e6,-3.3,3.3,c1.w,c1.h,"#f472b6",1.5);
+  const c2=setupCanvas("cv_pllfreq");
+  drawGrid(c2.ctx,c2.w,c2.h,"时间 µs","VCO 频率 MHz");
+  let fminA=1e18,fmaxA=-1e18;
+  for(const v of fr){ if(v<fminA)fminA=v; if(v>fmaxA)fmaxA=v; }
+  const fmin=Math.min(fminA,fTarget/1e6)*0.999, fmax=Math.max(fmaxA,fTarget/1e6)*1.001;
+  plotXY(c2.ctx,ts,fr,0,Tsettle*1e6,fmin,fmax,c2.w,c2.h,"#38bdf8",1.8);
+  const Yt=c2.h-(fTarget/1e6-fmin)/(fmax-fmin)*c2.h;
+  c2.ctx.strokeStyle="#fbbf24"; c2.ctx.setLineDash([6,4]);
+  c2.ctx.beginPath(); c2.ctx.moveTo(0,Yt); c2.ctx.lineTo(c2.w,Yt); c2.ctx.stroke();
+  c2.ctx.setLineDash([]);
+  let locked=true;
+  for(let i=Math.floor(M*0.9);i<M;i++) if(Math.abs(fr[i]-fTarget/1e6)>fTarget/1e6*1e-4){locked=false;break;}
+  const dampingTxt = zeta<1?"欠阻尼：有过冲振铃":zeta===1?"临界阻尼":"过阻尼：缓慢无过冲";
+  $("pll_out").textContent =
+    "输出频率 = N×f_ref = "+(fTarget/1e6)+" MHz ｜ ζ="+zeta.toFixed(2)+"（"+dampingTxt+"）｜ 理论锁定时间 ≈ 4/(ζ·ω_n) = "+
+    (4/(zeta*wn)*1e6).toFixed(1)+" µs ｜ "+(locked?"✓ 显示窗口内已锁定":"⚠ 尚未锁定——增大带宽或 ζ 试试");
+}
+["pll_n","pll_z","pll_fn"].forEach(id=>$(id).addEventListener("input",updatePLL));
+
+/* ==== 仿真②：相位噪声谱 ==== */
+function pnH(f, fl, zeta){ // 二阶环路相位传递 |H|
+  const x=f/fl;
+  return 1/Math.sqrt(Math.pow(1-x*x,2)+Math.pow(2*zeta*x,2));
+}
+function updatePN(){
+  const N=+$("pn_n").value;
+  const fl=Math.pow(10,+$("pn_fl").value);
+  const lvco=+$("pn_vco").value, lref=+$("pn_ref").value;
+  $("v_pnn").textContent=N;
+  $("v_pnfl").textContent = fl>=1e6 ? (fl/1e6).toFixed(2)+" MHz" : (fl/1e3).toFixed(0)+" kHz";
+  $("v_pnvco").textContent=lvco+" dBc/Hz";
+  $("v_pnref").textContent=lref+" dBc/Hz";
+  const f0=N*10e6;                          // 载频 = N×10 MHz
+  const lg0=1, lg1=8;                       // 10 Hz ~ 100 MHz 偏移
+  const M=600, lxs=[], closed=[], vcoC=[], refC=[];
+  // 抖动积分（12kHz~20MHz）
+  let sumLin=0, prevF=null, prevL=null;
+  const zeta=0.707;
+  for(let i=0;i<M;i++){
+    const lg=lg0+(lg1-lg0)*i/(M-1);
+    const f=Math.pow(10,lg);
+    lxs.push(lg);
+    // VCO 自由振荡：-20dB/dec（100kHz 内额外 -10dB/dec 闪烁），远端压平到 -160
+    let lv = lvco + 20*Math.log10(1e6/f) + 10*Math.log10(Math.max(1, 1e5/f));
+    lv = Math.max(lv, -160);
+    // 参考路径：噪底 + 20lgN，经环路低通
+    const lr = lref + 20*Math.log10(N) + 20*Math.log10(pnH(f, fl, zeta));
+    // VCO 路径：经环路高通 |1-H|
+    const H=pnH(f, fl, zeta);
+    const oneMinusH = Math.min(1, Math.max(1e-6, Math.abs(1-H*H)));  // |1-H|² 近似
+    const lvo = lv + 10*Math.log10(oneMinusH);
+    const lin = 10*Math.log10(Math.pow(10,lr/10)+Math.pow(10,lvo/10));
+    closed.push(lin); vcoC.push(lv); refC.push(lr);
+    if(f>=12e3 && f<=20e6 && prevF!==null){
+      sumLin += (Math.pow(10,prevL/10)+Math.pow(10,lin/10))/2*(f-prevF);
+    }
+    prevF=f; prevL=lin;
+  }
+  const cv=setupCanvas("cv_pn");
+  drawGrid(cv.ctx,cv.w,cv.h,"偏离载频 f (Hz, 对数)","L(f) dBc/Hz");
+  const ya=-180, yb=-40;
+  const X=lg=>(lg-lg0)/(lg1-lg0)*cv.w;
+  cv.ctx.setLineDash([4,4]);
+  plotXY(cv.ctx,lxs,vcoC,lg0,lg1,ya,yb,cv.w,cv.h,"rgba(71,85,105,.9)",1.2);
+  cv.ctx.setLineDash([2,4]);
+  plotXY(cv.ctx,lxs,refC,lg0,lg1,ya,yb,cv.w,cv.h,"rgba(244,114,182,.8)",1.2);
+  cv.ctx.setLineDash([]);
+  plotXY(cv.ctx,lxs,closed,lg0,lg1,ya,yb,cv.w,cv.h,"#a3e635",2);
+  const Xl=X(Math.log10(fl));
+  cv.ctx.strokeStyle="#fbbf24"; cv.ctx.setLineDash([5,4]);
+  cv.ctx.beginPath(); cv.ctx.moveTo(Xl,0); cv.ctx.lineTo(Xl,cv.h); cv.ctx.stroke();
+  cv.ctx.setLineDash([]);
+  cv.ctx.fillStyle="#fbbf24"; cv.ctx.font="11px Consolas";
+  cv.ctx.fillText("f_L", Math.min(Xl+4,cv.w-24), 16);
+  cv.ctx.fillStyle="#64748b";
+  cv.ctx.fillText("10 Hz", 4, cv.h-6);
+  cv.ctx.fillText("100 MHz", cv.w-66, cv.h-6);
+  const sigma=Math.sqrt(2*sumLin);
+  const tj=sigma/(2*Math.PI*f0);
+  const ped = tj>=1e-9 ? (tj/1e-9).toFixed(2)+" ns" : (tj/1e-12).toFixed(2)+" ps";
+  $("pn_out").textContent =
+    "载频 f₀ = N×10 MHz = "+(f0/1e6).toFixed(0)+" MHz ｜ 环路带宽 "+(fl>=1e6?(fl/1e6).toFixed(2)+" MHz":(fl/1e3).toFixed(0)+" kHz")+
+    " ｜ 带内平台 ≈ 参考+20lgN = "+(lref+20*Math.log10(N)).toFixed(1)+" dBc/Hz"+
+    " ｜ 12kHz~20MHz 积分：σ_φ = "+sigma.toExponential(2)+" rad → RMS 时间抖动 ≈ "+ped+
+    " ｜ 环路带宽取在两条噪声曲线交点附近时总抖动最小";
+}
+["pn_n","pn_fl","pn_vco","pn_ref"].forEach(id=>$(id).addEventListener("input",updatePN));
+
+function updateAll(){ updatePLL(); updatePN(); }
+window.addEventListener("resize",updateAll);
+updateAll();
+</script>
+
+<div class="qr-overlay" id="qrOverlay" hidden>
+  <div class="qr-card" role="dialog" aria-label="分享本页二维码">
+    <button class="qr-close" type="button" aria-label="关闭">✕</button>
+    <h3>📱 扫码分享本页</h3>
+    <canvas class="qr-canvas" id="qrCanvas" width="10" height="10"></canvas>
+    <div class="qr-url" id="qrUrl"></div>
+    <div class="qr-actions">
+      <button type="button" id="qrCopy">复制链接</button>
+      <a id="qrOpen" href="#" target="_blank" rel="noopener">在线打开</a>
+    </div>
+  </div>
+</div>
+
+<script>
+/* qrcode-generator 1.4.4 · (c) Kazuhiko Arase · MIT License · github.com/kazuhikoarase/qrcode-generator */
+/**
+ * Minified by jsDelivr using Terser v5.37.0.
+ * Original file: /npm/qrcode-generator@1.4.4/qrcode.js
+ *
+ * Do NOT use SRI with dynamically generated files! More information: https://www.jsdelivr.com/using-sri-with-dynamic-files
+ */
+var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],f={},c=function(t,r){o=function(t){for(var r=new Array(t),e=0;e<t;e+=1){r[e]=new Array(t);for(var n=0;n<t;n+=1)r[e][n]=null}return r}(i=4*e+17),l(0,0),l(i-7,0),l(0,i-7),s(),h(),d(t,r),e>=7&&v(t),null==a&&(a=p(e,n,u)),w(a,r)},l=function(t,r){for(var e=-1;e<=7;e+=1)if(!(t+e<=-1||i<=t+e))for(var n=-1;n<=7;n+=1)r+n<=-1||i<=r+n||(o[t+e][r+n]=0<=e&&e<=6&&(0==n||6==n)||0<=n&&n<=6&&(0==e||6==e)||2<=e&&e<=4&&2<=n&&n<=4)},h=function(){for(var t=8;t<i-8;t+=1)null==o[t][6]&&(o[t][6]=t%2==0);for(var r=8;r<i-8;r+=1)null==o[6][r]&&(o[6][r]=r%2==0)},s=function(){for(var t=B.getPatternPosition(e),r=0;r<t.length;r+=1)for(var n=0;n<t.length;n+=1){var i=t[r],a=t[n];if(null==o[i][a])for(var u=-2;u<=2;u+=1)for(var f=-2;f<=2;f+=1)o[i+u][a+f]=-2==u||2==u||-2==f||2==f||0==u&&0==f}},v=function(t){for(var r=B.getBCHTypeNumber(e),n=0;n<18;n+=1){var a=!t&&1==(r>>n&1);o[Math.floor(n/3)][n%3+i-8-3]=a}for(n=0;n<18;n+=1){a=!t&&1==(r>>n&1);o[n%3+i-8-3][Math.floor(n/3)]=a}},d=function(t,r){for(var e=n<<3|r,a=B.getBCHTypeInfo(e),u=0;u<15;u+=1){var f=!t&&1==(a>>u&1);u<6?o[u][8]=f:u<8?o[u+1][8]=f:o[i-15+u][8]=f}for(u=0;u<15;u+=1){f=!t&&1==(a>>u&1);u<8?o[8][i-u-1]=f:u<9?o[8][15-u-1+1]=f:o[8][15-u-1]=f}o[i-8][8]=!t},w=function(t,r){for(var e=-1,n=i-1,a=7,u=0,f=B.getMaskFunction(r),c=i-1;c>0;c-=2)for(6==c&&(c-=1);;){for(var g=0;g<2;g+=1)if(null==o[n][c-g]){var l=!1;u<t.length&&(l=1==(t[u]>>>a&1)),f(n,c-g)&&(l=!l),o[n][c-g]=l,-1==(a-=1)&&(u+=1,a=7)}if((n+=e)<0||i<=n){n-=e,e=-e;break}}},p=function(t,r,e){for(var n=A.getRSBlocks(t,r),o=b(),i=0;i<e.length;i+=1){var a=e[i];o.put(a.getMode(),4),o.put(a.getLength(),B.getLengthInBits(a.getMode(),t)),a.write(o)}var u=0;for(i=0;i<n.length;i+=1)u+=n[i].dataCount;if(o.getLengthInBits()>8*u)throw"code length overflow. ("+o.getLengthInBits()+">"+8*u+")";for(o.getLengthInBits()+4<=8*u&&o.put(0,4);o.getLengthInBits()%8!=0;)o.putBit(!1);for(;!(o.getLengthInBits()>=8*u||(o.put(236,8),o.getLengthInBits()>=8*u));)o.put(17,8);return function(t,r){for(var e=0,n=0,o=0,i=new Array(r.length),a=new Array(r.length),u=0;u<r.length;u+=1){var f=r[u].dataCount,c=r[u].totalCount-f;n=Math.max(n,f),o=Math.max(o,c),i[u]=new Array(f);for(var g=0;g<i[u].length;g+=1)i[u][g]=255&t.getBuffer()[g+e];e+=f;var l=B.getErrorCorrectPolynomial(c),h=k(i[u],l.getLength()-1).mod(l);for(a[u]=new Array(l.getLength()-1),g=0;g<a[u].length;g+=1){var s=g+h.getLength()-a[u].length;a[u][g]=s>=0?h.getAt(s):0}}var v=0;for(g=0;g<r.length;g+=1)v+=r[g].totalCount;var d=new Array(v),w=0;for(g=0;g<n;g+=1)for(u=0;u<r.length;u+=1)g<i[u].length&&(d[w]=i[u][g],w+=1);for(g=0;g<o;g+=1)for(u=0;u<r.length;u+=1)g<a[u].length&&(d[w]=a[u][g],w+=1);return d}(o,n)};f.addData=function(t,r){var e=null;switch(r=r||"Byte"){case"Numeric":e=M(t);break;case"Alphanumeric":e=x(t);break;case"Byte":e=m(t);break;case"Kanji":e=L(t);break;default:throw"mode:"+r}u.push(e),a=null},f.isDark=function(t,r){if(t<0||i<=t||r<0||i<=r)throw t+","+r;return o[t][r]},f.getModuleCount=function(){return i},f.make=function(){if(e<1){for(var t=1;t<40;t++){for(var r=A.getRSBlocks(t,n),o=b(),i=0;i<u.length;i++){var a=u[i];o.put(a.getMode(),4),o.put(a.getLength(),B.getLengthInBits(a.getMode(),t)),a.write(o)}var g=0;for(i=0;i<r.length;i++)g+=r[i].dataCount;if(o.getLengthInBits()<=8*g)break}e=t}c(!1,function(){for(var t=0,r=0,e=0;e<8;e+=1){c(!0,e);var n=B.getLostPoint(f);(0==e||t>n)&&(t=n,r=e)}return r}())},f.createTableTag=function(t,r){t=t||2;var e="";e+='<table style="',e+=" border-width: 0px; border-style: none;",e+=" border-collapse: collapse;",e+=" padding: 0px; margin: "+(r=void 0===r?4*t:r)+"px;",e+='">',e+="<tbody>";for(var n=0;n<f.getModuleCount();n+=1){e+="<tr>";for(var o=0;o<f.getModuleCount();o+=1)e+='<td style="',e+=" border-width: 0px; border-style: none;",e+=" border-collapse: collapse;",e+=" padding: 0px; margin: 0px;",e+=" width: "+t+"px;",e+=" height: "+t+"px;",e+=" background-color: ",e+=f.isDark(n,o)?"#000000":"#ffffff",e+=";",e+='"/>';e+="</tr>"}return e+="</tbody>",e+="</table>"},f.createSvgTag=function(t,r,e,n){var o={};"object"==typeof arguments[0]&&(t=(o=arguments[0]).cellSize,r=o.margin,e=o.alt,n=o.title),t=t||2,r=void 0===r?4*t:r,(e="string"==typeof e?{text:e}:e||{}).text=e.text||null,e.id=e.text?e.id||"qrcode-description":null,(n="string"==typeof n?{text:n}:n||{}).text=n.text||null,n.id=n.text?n.id||"qrcode-title":null;var i,a,u,c,g=f.getModuleCount()*t+2*r,l="";for(c="l"+t+",0 0,"+t+" -"+t+",0 0,-"+t+"z ",l+='<svg version="1.1" xmlns="http://www.w3.org/2000/svg"',l+=o.scalable?"":' width="'+g+'px" height="'+g+'px"',l+=' viewBox="0 0 '+g+" "+g+'" ',l+=' preserveAspectRatio="xMinYMin meet"',l+=n.text||e.text?' role="img" aria-labelledby="'+y([n.id,e.id].join(" ").trim())+'"':"",l+=">",l+=n.text?'<title id="'+y(n.id)+'">'+y(n.text)+"</title>":"",l+=e.text?'<description id="'+y(e.id)+'">'+y(e.text)+"</description>":"",l+='<rect width="100%" height="100%" fill="white" cx="0" cy="0"/>',l+='<path d="',a=0;a<f.getModuleCount();a+=1)for(u=a*t+r,i=0;i<f.getModuleCount();i+=1)f.isDark(a,i)&&(l+="M"+(i*t+r)+","+u+c);return l+='" stroke="transparent" fill="black"/>',l+="</svg>"},f.createDataURL=function(t,r){t=t||2,r=void 0===r?4*t:r;var e=f.getModuleCount()*t+2*r,n=r,o=e-r;return I(e,e,(function(r,e){if(n<=r&&r<o&&n<=e&&e<o){var i=Math.floor((r-n)/t),a=Math.floor((e-n)/t);return f.isDark(a,i)?0:1}return 1}))},f.createImgTag=function(t,r,e){t=t||2,r=void 0===r?4*t:r;var n=f.getModuleCount()*t+2*r,o="";return o+="<img",o+=' src="',o+=f.createDataURL(t,r),o+='"',o+=' width="',o+=n,o+='"',o+=' height="',o+=n,o+='"',e&&(o+=' alt="',o+=y(e),o+='"'),o+="/>"};var y=function(t){for(var r="",e=0;e<t.length;e+=1){var n=t.charAt(e);switch(n){case"<":r+="&lt;";break;case">":r+="&gt;";break;case"&":r+="&amp;";break;case'"':r+="&quot;";break;default:r+=n}}return r};return f.createASCII=function(t,r){if((t=t||1)<2)return function(t){t=void 0===t?2:t;var r,e,n,o,i,a=1*f.getModuleCount()+2*t,u=t,c=a-t,g={"██":"█","█ ":"▀"," █":"▄","  ":" "},l={"██":"▀","█ ":"▀"," █":" ","  ":" "},h="";for(r=0;r<a;r+=2){for(n=Math.floor((r-u)/1),o=Math.floor((r+1-u)/1),e=0;e<a;e+=1)i="█",u<=e&&e<c&&u<=r&&r<c&&f.isDark(n,Math.floor((e-u)/1))&&(i=" "),u<=e&&e<c&&u<=r+1&&r+1<c&&f.isDark(o,Math.floor((e-u)/1))?i+=" ":i+="█",h+=t<1&&r+1>=c?l[i]:g[i];h+="\n"}return a%2&&t>0?h.substring(0,h.length-a-1)+Array(a+1).join("▀"):h.substring(0,h.length-1)}(r);t-=1,r=void 0===r?2*t:r;var e,n,o,i,a=f.getModuleCount()*t+2*r,u=r,c=a-r,g=Array(t+1).join("██"),l=Array(t+1).join("  "),h="",s="";for(e=0;e<a;e+=1){for(o=Math.floor((e-u)/t),s="",n=0;n<a;n+=1)i=1,u<=n&&n<c&&u<=e&&e<c&&f.isDark(o,Math.floor((n-u)/t))&&(i=0),s+=i?g:l;for(o=0;o<t;o+=1)h+=s+"\n"}return h.substring(0,h.length-1)},f.renderTo2dContext=function(t,r){r=r||2;for(var e=f.getModuleCount(),n=0;n<e;n++)for(var o=0;o<e;o++)t.fillStyle=f.isDark(n,o)?"black":"white",t.fillRect(n*r,o*r,r,r)},f};t.stringToBytes=(t.stringToBytesFuncs={default:function(t){for(var r=[],e=0;e<t.length;e+=1){var n=t.charCodeAt(e);r.push(255&n)}return r}}).default,t.createStringToBytes=function(t,r){var e=function(){for(var e=S(t),n=function(){var t=e.read();if(-1==t)throw"eof";return t},o=0,i={};;){var a=e.read();if(-1==a)break;var u=n(),f=n()<<8|n();i[String.fromCharCode(a<<8|u)]=f,o+=1}if(o!=r)throw o+" != "+r;return i}(),n="?".charCodeAt(0);return function(t){for(var r=[],o=0;o<t.length;o+=1){var i=t.charCodeAt(o);if(i<128)r.push(i);else{var a=e[t.charAt(o)];"number"==typeof a?(255&a)==a?r.push(a):(r.push(a>>>8),r.push(255&a)):r.push(n)}}return r}};var r,e,n,o,i,a=1,u=2,f=4,c=8,g={L:1,M:0,Q:3,H:2},l=0,h=1,s=2,v=3,d=4,w=5,p=6,y=7,B=(r=[[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50],[6,30,54],[6,32,58],[6,34,62],[6,26,46,66],[6,26,48,70],[6,26,50,74],[6,30,54,78],[6,30,56,82],[6,30,58,86],[6,34,62,90],[6,28,50,72,94],[6,26,50,74,98],[6,30,54,78,102],[6,28,54,80,106],[6,32,58,84,110],[6,30,58,86,114],[6,34,62,90,118],[6,26,50,74,98,122],[6,30,54,78,102,126],[6,26,52,78,104,130],[6,30,56,82,108,134],[6,34,60,86,112,138],[6,30,58,86,114,142],[6,34,62,90,118,146],[6,30,54,78,102,126,150],[6,24,50,76,102,128,154],[6,28,54,80,106,132,158],[6,32,58,84,110,136,162],[6,26,54,82,110,138,166],[6,30,58,86,114,142,170]],e=1335,n=7973,i=function(t){for(var r=0;0!=t;)r+=1,t>>>=1;return r},(o={}).getBCHTypeInfo=function(t){for(var r=t<<10;i(r)-i(e)>=0;)r^=e<<i(r)-i(e);return 21522^(t<<10|r)},o.getBCHTypeNumber=function(t){for(var r=t<<12;i(r)-i(n)>=0;)r^=n<<i(r)-i(n);return t<<12|r},o.getPatternPosition=function(t){return r[t-1]},o.getMaskFunction=function(t){switch(t){case l:return function(t,r){return(t+r)%2==0};case h:return function(t,r){return t%2==0};case s:return function(t,r){return r%3==0};case v:return function(t,r){return(t+r)%3==0};case d:return function(t,r){return(Math.floor(t/2)+Math.floor(r/3))%2==0};case w:return function(t,r){return t*r%2+t*r%3==0};case p:return function(t,r){return(t*r%2+t*r%3)%2==0};case y:return function(t,r){return(t*r%3+(t+r)%2)%2==0};default:throw"bad maskPattern:"+t}},o.getErrorCorrectPolynomial=function(t){for(var r=k([1],0),e=0;e<t;e+=1)r=r.multiply(k([1,C.gexp(e)],0));return r},o.getLengthInBits=function(t,r){if(1<=r&&r<10)switch(t){case a:return 10;case u:return 9;case f:case c:return 8;default:throw"mode:"+t}else if(r<27)switch(t){case a:return 12;case u:return 11;case f:return 16;case c:return 10;default:throw"mode:"+t}else{if(!(r<41))throw"type:"+r;switch(t){case a:return 14;case u:return 13;case f:return 16;case c:return 12;default:throw"mode:"+t}}},o.getLostPoint=function(t){for(var r=t.getModuleCount(),e=0,n=0;n<r;n+=1)for(var o=0;o<r;o+=1){for(var i=0,a=t.isDark(n,o),u=-1;u<=1;u+=1)if(!(n+u<0||r<=n+u))for(var f=-1;f<=1;f+=1)o+f<0||r<=o+f||0==u&&0==f||a==t.isDark(n+u,o+f)&&(i+=1);i>5&&(e+=3+i-5)}for(n=0;n<r-1;n+=1)for(o=0;o<r-1;o+=1){var c=0;t.isDark(n,o)&&(c+=1),t.isDark(n+1,o)&&(c+=1),t.isDark(n,o+1)&&(c+=1),t.isDark(n+1,o+1)&&(c+=1),0!=c&&4!=c||(e+=3)}for(n=0;n<r;n+=1)for(o=0;o<r-6;o+=1)t.isDark(n,o)&&!t.isDark(n,o+1)&&t.isDark(n,o+2)&&t.isDark(n,o+3)&&t.isDark(n,o+4)&&!t.isDark(n,o+5)&&t.isDark(n,o+6)&&(e+=40);for(o=0;o<r;o+=1)for(n=0;n<r-6;n+=1)t.isDark(n,o)&&!t.isDark(n+1,o)&&t.isDark(n+2,o)&&t.isDark(n+3,o)&&t.isDark(n+4,o)&&!t.isDark(n+5,o)&&t.isDark(n+6,o)&&(e+=40);var g=0;for(o=0;o<r;o+=1)for(n=0;n<r;n+=1)t.isDark(n,o)&&(g+=1);return e+=Math.abs(100*g/r/r-50)/5*10},o),C=function(){for(var t=new Array(256),r=new Array(256),e=0;e<8;e+=1)t[e]=1<<e;for(e=8;e<256;e+=1)t[e]=t[e-4]^t[e-5]^t[e-6]^t[e-8];for(e=0;e<255;e+=1)r[t[e]]=e;var n={glog:function(t){if(t<1)throw"glog("+t+")";return r[t]},gexp:function(r){for(;r<0;)r+=255;for(;r>=256;)r-=255;return t[r]}};return n}();function k(t,r){if(void 0===t.length)throw t.length+"/"+r;var e=function(){for(var e=0;e<t.length&&0==t[e];)e+=1;for(var n=new Array(t.length-e+r),o=0;o<t.length-e;o+=1)n[o]=t[o+e];return n}(),n={getAt:function(t){return e[t]},getLength:function(){return e.length},multiply:function(t){for(var r=new Array(n.getLength()+t.getLength()-1),e=0;e<n.getLength();e+=1)for(var o=0;o<t.getLength();o+=1)r[e+o]^=C.gexp(C.glog(n.getAt(e))+C.glog(t.getAt(o)));return k(r,0)},mod:function(t){if(n.getLength()-t.getLength()<0)return n;for(var r=C.glog(n.getAt(0))-C.glog(t.getAt(0)),e=new Array(n.getLength()),o=0;o<n.getLength();o+=1)e[o]=n.getAt(o);for(o=0;o<t.getLength();o+=1)e[o]^=C.gexp(C.glog(t.getAt(o))+r);return k(e,0).mod(t)}};return n}var A=function(){var t=[[1,26,19],[1,26,16],[1,26,13],[1,26,9],[1,44,34],[1,44,28],[1,44,22],[1,44,16],[1,70,55],[1,70,44],[2,35,17],[2,35,13],[1,100,80],[2,50,32],[2,50,24],[4,25,9],[1,134,108],[2,67,43],[2,33,15,2,34,16],[2,33,11,2,34,12],[2,86,68],[4,43,27],[4,43,19],[4,43,15],[2,98,78],[4,49,31],[2,32,14,4,33,15],[4,39,13,1,40,14],[2,121,97],[2,60,38,2,61,39],[4,40,18,2,41,19],[4,40,14,2,41,15],[2,146,116],[3,58,36,2,59,37],[4,36,16,4,37,17],[4,36,12,4,37,13],[2,86,68,2,87,69],[4,69,43,1,70,44],[6,43,19,2,44,20],[6,43,15,2,44,16],[4,101,81],[1,80,50,4,81,51],[4,50,22,4,51,23],[3,36,12,8,37,13],[2,116,92,2,117,93],[6,58,36,2,59,37],[4,46,20,6,47,21],[7,42,14,4,43,15],[4,133,107],[8,59,37,1,60,38],[8,44,20,4,45,21],[12,33,11,4,34,12],[3,145,115,1,146,116],[4,64,40,5,65,41],[11,36,16,5,37,17],[11,36,12,5,37,13],[5,109,87,1,110,88],[5,65,41,5,66,42],[5,54,24,7,55,25],[11,36,12,7,37,13],[5,122,98,1,123,99],[7,73,45,3,74,46],[15,43,19,2,44,20],[3,45,15,13,46,16],[1,135,107,5,136,108],[10,74,46,1,75,47],[1,50,22,15,51,23],[2,42,14,17,43,15],[5,150,120,1,151,121],[9,69,43,4,70,44],[17,50,22,1,51,23],[2,42,14,19,43,15],[3,141,113,4,142,114],[3,70,44,11,71,45],[17,47,21,4,48,22],[9,39,13,16,40,14],[3,135,107,5,136,108],[3,67,41,13,68,42],[15,54,24,5,55,25],[15,43,15,10,44,16],[4,144,116,4,145,117],[17,68,42],[17,50,22,6,51,23],[19,46,16,6,47,17],[2,139,111,7,140,112],[17,74,46],[7,54,24,16,55,25],[34,37,13],[4,151,121,5,152,122],[4,75,47,14,76,48],[11,54,24,14,55,25],[16,45,15,14,46,16],[6,147,117,4,148,118],[6,73,45,14,74,46],[11,54,24,16,55,25],[30,46,16,2,47,17],[8,132,106,4,133,107],[8,75,47,13,76,48],[7,54,24,22,55,25],[22,45,15,13,46,16],[10,142,114,2,143,115],[19,74,46,4,75,47],[28,50,22,6,51,23],[33,46,16,4,47,17],[8,152,122,4,153,123],[22,73,45,3,74,46],[8,53,23,26,54,24],[12,45,15,28,46,16],[3,147,117,10,148,118],[3,73,45,23,74,46],[4,54,24,31,55,25],[11,45,15,31,46,16],[7,146,116,7,147,117],[21,73,45,7,74,46],[1,53,23,37,54,24],[19,45,15,26,46,16],[5,145,115,10,146,116],[19,75,47,10,76,48],[15,54,24,25,55,25],[23,45,15,25,46,16],[13,145,115,3,146,116],[2,74,46,29,75,47],[42,54,24,1,55,25],[23,45,15,28,46,16],[17,145,115],[10,74,46,23,75,47],[10,54,24,35,55,25],[19,45,15,35,46,16],[17,145,115,1,146,116],[14,74,46,21,75,47],[29,54,24,19,55,25],[11,45,15,46,46,16],[13,145,115,6,146,116],[14,74,46,23,75,47],[44,54,24,7,55,25],[59,46,16,1,47,17],[12,151,121,7,152,122],[12,75,47,26,76,48],[39,54,24,14,55,25],[22,45,15,41,46,16],[6,151,121,14,152,122],[6,75,47,34,76,48],[46,54,24,10,55,25],[2,45,15,64,46,16],[17,152,122,4,153,123],[29,74,46,14,75,47],[49,54,24,10,55,25],[24,45,15,46,46,16],[4,152,122,18,153,123],[13,74,46,32,75,47],[48,54,24,14,55,25],[42,45,15,32,46,16],[20,147,117,4,148,118],[40,75,47,7,76,48],[43,54,24,22,55,25],[10,45,15,67,46,16],[19,148,118,6,149,119],[18,75,47,31,76,48],[34,54,24,34,55,25],[20,45,15,61,46,16]],r=function(t,r){var e={};return e.totalCount=t,e.dataCount=r,e},e={};return e.getRSBlocks=function(e,n){var o=function(r,e){switch(e){case g.L:return t[4*(r-1)+0];case g.M:return t[4*(r-1)+1];case g.Q:return t[4*(r-1)+2];case g.H:return t[4*(r-1)+3];default:return}}(e,n);if(void 0===o)throw"bad rs block @ typeNumber:"+e+"/errorCorrectionLevel:"+n;for(var i=o.length/3,a=[],u=0;u<i;u+=1)for(var f=o[3*u+0],c=o[3*u+1],l=o[3*u+2],h=0;h<f;h+=1)a.push(r(c,l));return a},e}(),b=function(){var t=[],r=0,e={getBuffer:function(){return t},getAt:function(r){var e=Math.floor(r/8);return 1==(t[e]>>>7-r%8&1)},put:function(t,r){for(var n=0;n<r;n+=1)e.putBit(1==(t>>>r-n-1&1))},getLengthInBits:function(){return r},putBit:function(e){var n=Math.floor(r/8);t.length<=n&&t.push(0),e&&(t[n]|=128>>>r%8),r+=1}};return e},M=function(t){var r=a,e=t,n={getMode:function(){return r},getLength:function(t){return e.length},write:function(t){for(var r=e,n=0;n+2<r.length;)t.put(o(r.substring(n,n+3)),10),n+=3;n<r.length&&(r.length-n==1?t.put(o(r.substring(n,n+1)),4):r.length-n==2&&t.put(o(r.substring(n,n+2)),7))}},o=function(t){for(var r=0,e=0;e<t.length;e+=1)r=10*r+i(t.charAt(e));return r},i=function(t){if("0"<=t&&t<="9")return t.charCodeAt(0)-"0".charCodeAt(0);throw"illegal char :"+t};return n},x=function(t){var r=u,e=t,n={getMode:function(){return r},getLength:function(t){return e.length},write:function(t){for(var r=e,n=0;n+1<r.length;)t.put(45*o(r.charAt(n))+o(r.charAt(n+1)),11),n+=2;n<r.length&&t.put(o(r.charAt(n)),6)}},o=function(t){if("0"<=t&&t<="9")return t.charCodeAt(0)-"0".charCodeAt(0);if("A"<=t&&t<="Z")return t.charCodeAt(0)-"A".charCodeAt(0)+10;switch(t){case" ":return 36;case"$":return 37;case"%":return 38;case"*":return 39;case"+":return 40;case"-":return 41;case".":return 42;case"/":return 43;case":":return 44;default:throw"illegal char :"+t}};return n},m=function(r){var e=f,n=t.stringToBytes(r),o={getMode:function(){return e},getLength:function(t){return n.length},write:function(t){for(var r=0;r<n.length;r+=1)t.put(n[r],8)}};return o},L=function(r){var e=c,n=t.stringToBytesFuncs.SJIS;if(!n)throw"sjis not supported.";!function(){var t=n("友");if(2!=t.length||38726!=(t[0]<<8|t[1]))throw"sjis not supported."}();var o=n(r),i={getMode:function(){return e},getLength:function(t){return~~(o.length/2)},write:function(t){for(var r=o,e=0;e+1<r.length;){var n=(255&r[e])<<8|255&r[e+1];if(33088<=n&&n<=40956)n-=33088;else{if(!(57408<=n&&n<=60351))throw"illegal char at "+(e+1)+"/"+n;n-=49472}n=192*(n>>>8&255)+(255&n),t.put(n,13),e+=2}if(e<r.length)throw"illegal char at "+(e+1)}};return i},D=function(){var t=[],r={writeByte:function(r){t.push(255&r)},writeShort:function(t){r.writeByte(t),r.writeByte(t>>>8)},writeBytes:function(t,e,n){e=e||0,n=n||t.length;for(var o=0;o<n;o+=1)r.writeByte(t[o+e])},writeString:function(t){for(var e=0;e<t.length;e+=1)r.writeByte(t.charCodeAt(e))},toByteArray:function(){return t},toString:function(){var r="";r+="[";for(var e=0;e<t.length;e+=1)e>0&&(r+=","),r+=t[e];return r+="]"}};return r},S=function(t){var r=t,e=0,n=0,o=0,i={read:function(){for(;o<8;){if(e>=r.length){if(0==o)return-1;throw"unexpected end of file./"+o}var t=r.charAt(e);if(e+=1,"="==t)return o=0,-1;t.match(/^\s$/)||(n=n<<6|a(t.charCodeAt(0)),o+=6)}var i=n>>>o-8&255;return o-=8,i}},a=function(t){if(65<=t&&t<=90)return t-65;if(97<=t&&t<=122)return t-97+26;if(48<=t&&t<=57)return t-48+52;if(43==t)return 62;if(47==t)return 63;throw"c:"+t};return i},I=function(t,r,e){for(var n=function(t,r){var e=t,n=r,o=new Array(t*r),i={setPixel:function(t,r,n){o[r*e+t]=n},write:function(t){t.writeString("GIF87a"),t.writeShort(e),t.writeShort(n),t.writeByte(128),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(255),t.writeByte(255),t.writeByte(255),t.writeString(","),t.writeShort(0),t.writeShort(0),t.writeShort(e),t.writeShort(n),t.writeByte(0);var r=a(2);t.writeByte(2);for(var o=0;r.length-o>255;)t.writeByte(255),t.writeBytes(r,o,255),o+=255;t.writeByte(r.length-o),t.writeBytes(r,o,r.length-o),t.writeByte(0),t.writeString(";")}},a=function(t){for(var r=1<<t,e=1+(1<<t),n=t+1,i=u(),a=0;a<r;a+=1)i.add(String.fromCharCode(a));i.add(String.fromCharCode(r)),i.add(String.fromCharCode(e));var f,c,g,l=D(),h=(f=l,c=0,g=0,{write:function(t,r){if(t>>>r!=0)throw"length over";for(;c+r>=8;)f.writeByte(255&(t<<c|g)),r-=8-c,t>>>=8-c,g=0,c=0;g|=t<<c,c+=r},flush:function(){c>0&&f.writeByte(g)}});h.write(r,n);var s=0,v=String.fromCharCode(o[s]);for(s+=1;s<o.length;){var d=String.fromCharCode(o[s]);s+=1,i.contains(v+d)?v+=d:(h.write(i.indexOf(v),n),i.size()<4095&&(i.size()==1<<n&&(n+=1),i.add(v+d)),v=d)}return h.write(i.indexOf(v),n),h.write(e,n),h.flush(),l.toByteArray()},u=function(){var t={},r=0,e={add:function(n){if(e.contains(n))throw"dup key:"+n;t[n]=r,r+=1},size:function(){return r},indexOf:function(r){return t[r]},contains:function(r){return void 0!==t[r]}};return e};return i}(t,r),o=0;o<r;o+=1)for(var i=0;i<t;i+=1)n.setPixel(i,o,e(i,o));var a=D();n.write(a);for(var u=function(){var t=0,r=0,e=0,n="",o={},i=function(t){n+=String.fromCharCode(a(63&t))},a=function(t){if(t<0);else{if(t<26)return 65+t;if(t<52)return t-26+97;if(t<62)return t-52+48;if(62==t)return 43;if(63==t)return 47}throw"n:"+t};return o.writeByte=function(n){for(t=t<<8|255&n,r+=8,e+=1;r>=6;)i(t>>>r-6),r-=6},o.flush=function(){if(r>0&&(i(t<<6-r),t=0,r=0),e%3!=0)for(var o=3-e%3,a=0;a<o;a+=1)n+="="},o.toString=function(){return n},o}(),f=a.toByteArray(),c=0;c<f.length;c+=1)u.writeByte(f[c]);return u.flush(),"data:image/gif;base64,"+u};return t}();qrcode.stringToBytesFuncs["UTF-8"]=function(t){return function(t){for(var r=[],e=0;e<t.length;e++){var n=t.charCodeAt(e);n<128?r.push(n):n<2048?r.push(192|n>>6,128|63&n):n<55296||n>=57344?r.push(224|n>>12,128|n>>6&63,128|63&n):(e++,n=65536+((1023&n)<<10|1023&t.charCodeAt(e)),r.push(240|n>>18,128|n>>12&63,128|n>>6&63,128|63&n))}return r}(t)},function(t){"function"==typeof define&&define.amd?define([],t):"object"==typeof exports&&(module.exports=t())}((function(){return qrcode}));
+//# sourceMappingURL=/sm/26b4b0d0b1e283d6b3ec9857ac597d7a60c76ac17be1ef4c965f03086de426bb.map
+</script>
+<script>
+(function(){
+"use strict";
+var overlay=document.getElementById("qrOverlay");
+var btn=document.querySelector(".share-bar .share-btn");
+if(!overlay||!btn)return;
+var url=btn.getAttribute("data-url")||location.href;
+document.getElementById("qrUrl").textContent=url;
+document.getElementById("qrOpen").href=url;
+function drawQR(){
+  var qr=qrcode(0,"M");qr.addData(url);qr.make();
+  var n=qr.getModuleCount(),Q=4,mod=3,W=(n+2*Q)*mod,dpr=window.devicePixelRatio||1;
+  var cv=document.getElementById("qrCanvas");
+  cv.style.width=W+"px";cv.style.height=W+"px";
+  cv.width=Math.round(W*dpr);cv.height=Math.round(W*dpr);
+  var ctx=cv.getContext("2d");
+  ctx.fillStyle="#fff";ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.fillStyle="#0d1117";
+  for(var r=0;r<n;r++)for(var c=0;c<n;c++)if(qr.isDark(r,c))
+    ctx.fillRect((Q+c)*mod*dpr,(Q+r)*mod*dpr,mod*dpr,mod*dpr);
+}
+btn.addEventListener("click",function(){overlay.hidden=false;drawQR();});
+function close(){overlay.hidden=true;}
+overlay.addEventListener("click",function(e){if(e.target===overlay)close();});
+overlay.querySelector(".qr-close").addEventListener("click",close);
+document.addEventListener("keydown",function(e){if(e.key==="Escape"&&!overlay.hidden)close();});
+var copyBtn=document.getElementById("qrCopy");
+copyBtn.addEventListener("click",function(){
+  function done(){copyBtn.textContent="已复制 ✓";setTimeout(function(){copyBtn.textContent="复制链接";},1500);}
+  function fallback(){
+    var ta=document.createElement("textarea");ta.value=url;
+    ta.style.position="fixed";ta.style.opacity="0";
+    document.body.appendChild(ta);ta.select();
+    try{document.execCommand("copy");}catch(e){}
+    document.body.removeChild(ta);done();
+  }
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(url).then(done,fallback);
+  }else{fallback();}
+});
+})();
+</script>
+</body>
+</html>

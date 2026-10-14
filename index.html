@@ -12,59 +12,207 @@
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--text);font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;line-height:1.7;min-height:100vh}
-header{text-align:center;padding:70px 24px 40px;background:linear-gradient(180deg,#16213e 0%,var(--bg) 100%)}
+header{text-align:center;padding:64px 24px 36px;background:linear-gradient(180deg,#16213e 0%,var(--bg) 100%)}
 header h1{font-size:34px;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
 header p{color:var(--dim);margin-top:10px;font-size:15px}
-.wrap{max-width:1000px;margin:0 auto;padding:20px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:20px}
-@media(max-width:520px){.grid{grid-template-columns:1fr}}
-a.tool{display:block;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:26px;text-decoration:none;color:var(--text);transition:transform .15s,border-color .15s}
-a.tool:hover{transform:translateY(-4px);border-color:var(--accent)}
-.tool .icon{font-size:34px;margin-bottom:10px}
-.tool h2{font-size:20px;margin-bottom:6px}
-.tool .sub{color:var(--dim);font-size:13px;margin-bottom:14px}
-.tool .tags span{display:inline-block;background:var(--panel2);color:var(--accent3);border-radius:4px;padding:2px 9px;font-size:12px;margin:0 6px 6px 0}
-.tool .go{color:var(--accent);font-size:13px;margin-top:6px}
+.wrap{max-width:1080px;margin:0 auto;padding:20px}
+section.cat{margin-bottom:44px}
+.cat-head{display:flex;align-items:baseline;gap:14px;border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:18px;flex-wrap:wrap}
+.cat-head .icon{font-size:26px}
+.cat-head h2{font-size:21px}
+.cat-head .cat-sub{color:var(--dim);font-size:13px}
+.cat-head .cat-count{margin-left:auto;color:var(--accent3);font-size:12px;background:var(--panel2);border-radius:4px;padding:2px 10px}
+.grid.mini{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+a.mini{position:relative;display:flex;flex-direction:column;gap:6px;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px 18px;text-decoration:none;color:var(--text);transition:transform .15s,border-color .15s}
+a.mini:hover{transform:translateY(-3px);border-color:var(--accent)}
+a.mini .no{font-size:11px;color:var(--dim);letter-spacing:1px}
+a.mini h3{font-size:15.5px}
+a.mini .desc{color:var(--dim);font-size:12.5px;line-height:1.55}
+a.mini .sim-tag{color:var(--accent3);font-size:11.5px;border-top:1px dashed var(--border);padding-top:7px;margin-top:2px}
+a.mini .start{position:absolute;top:-9px;right:12px;background:linear-gradient(90deg,var(--accent),var(--accent2));color:#0d1117;font-size:11px;font-weight:bold;border-radius:10px;padding:1px 10px}
 footer{text-align:center;color:#475569;font-size:12px;margin:60px 0 30px}
+@media(max-width:520px){.cat-head .cat-count{margin-left:0}}
+a.overview-banner{display:flex;align-items:center;gap:16px;background:linear-gradient(90deg,rgba(56,189,248,.12),rgba(244,114,182,.10));border:1px solid var(--border);border-radius:14px;padding:18px 24px;margin-bottom:38px;text-decoration:none;color:var(--text);transition:border-color .15s}
+a.overview-banner:hover{border-color:var(--accent)}
+.ob-icon{font-size:28px}
+.ob-text{flex:1}
+.ob-text b{font-size:16.5px;display:block}
+.ob-text span{color:var(--dim);font-size:12.5px}
+.ob-go{color:var(--accent);font-size:14px;white-space:nowrap}
+@media(max-width:520px){a.overview-banner{flex-wrap:wrap}}
+
+/* ==== 分享二维码入口 ==== */
+.share-bar{text-align:center;margin:28px 0 8px}
+.share-btn{background:var(--panel2);color:var(--accent);border:1px solid var(--border);border-radius:10px;padding:8px 24px;font-size:14px;font-family:inherit;cursor:pointer;transition:border-color .15s}
+.share-btn:hover{border-color:var(--accent)}
+.qr-overlay{position:fixed;inset:0;background:rgba(3,6,12,.8);display:flex;align-items:center;justify-content:center;z-index:99}
+.qr-overlay[hidden]{display:none}
+.qr-card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:26px 28px 22px;max-width:340px;width:calc(100% - 48px);text-align:center;position:relative}
+.qr-card h3{font-size:16px;margin-bottom:14px}
+.qr-canvas{background:#fff;border-radius:8px;display:block;margin:0 auto 12px}
+.qr-url{color:var(--dim);font-size:11.5px;word-break:break-all;line-height:1.5;margin-bottom:14px}
+.qr-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.qr-actions button,.qr-actions a{background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:7px 16px;font-size:13px;font-family:inherit;cursor:pointer;text-decoration:none;display:inline-block}
+.qr-actions a{color:var(--accent)}
+.qr-close{position:absolute;top:8px;right:12px;background:none;border:none;color:var(--dim);font-size:20px;cursor:pointer;line-height:1;padding:4px}
+.qr-close:hover{color:var(--text)}
 </style>
 </head>
 <body>
 <header>
   <h1>RF Tools 科普工具集</h1>
-  <p>射频 · 信号处理 · 毫米波雷达 · SDR —— 交互式仿真，纯本地单文件，离线可用</p>
+  <p>射频 · 信号处理 · 毫米波雷达 · SDR —— 四大类 28 个专题工具页，交互式仿真，纯本地单文件，离线可用</p>
 </header>
 <div class="wrap">
-  <div class="grid">
-    <a class="tool" href="RF/射频基础.html">
-      <div class="icon">📡</div>
-      <h2>射频基础（RF）</h2>
-      <div class="sub">dB 换算、滤波器频响、阻抗匹配与驻波</div>
-      <div class="tags"><span>dB/dBm 换算器</span><span>巴特沃斯滤波器</span><span>非线性 P1dB/IP3</span><span>VSWR 驻波演示</span><span>PLL 锁定仿真</span></div>
-      <div class="go">打开工具 →</div>
-    </a>
-    <a class="tool" href="DSP/信号处理基础.html">
-      <div class="icon">〰️</div>
-      <h2>信号处理基础（DSP）</h2>
-      <div class="sub">信号与噪声、采样定理、FFT 频谱分析、窗函数</div>
-      <div class="tags"><span>傅里叶级数合成</span><span>采样与混叠演示</span><span>FFT 频谱仪</span><span>窗函数对比</span></div>
-      <div class="go">打开工具 →</div>
-    </a>
-    <a class="tool" href="FMCW/毫米波雷达基础.html">
-      <div class="icon">🚗</div>
-      <h2>毫米波雷达基础（FMCW）</h2>
-      <div class="sub">Chirp 调频、拍频测距、多普勒测速、RD 图</div>
-      <div class="tags"><span>Chirp 时频图</span><span>FFT 测距</span><span>距离-多普勒热力图</span><span>雷达方程</span><span>CFAR 检测</span><span>角度估计</span></div>
-      <div class="go">打开工具 →</div>
-    </a>
-    <a class="tool" href="SDR/SDR基础.html">
-      <div class="icon">📻</div>
-      <h2>SDR 基础（软件无线电）</h2>
-      <div class="sub">I/Q 信号、星座图、调制解调、频谱搬移</div>
-      <div class="tags"><span>I/Q 星座图</span><span>AM/FM 调制</span><span>混频下变频</span><span>瀑布图</span><span>带通采样</span><span>DDC+抽取</span></div>
-      <div class="go">打开工具 →</div>
-    </a>
+
+  <a class="overview-banner" href="overview.html">
+    <span class="ob-icon">🗺️</span>
+    <span class="ob-text"><b>全站总览与学习路线</b><span>一页看懂 28 个专题的关系:知识地图(前置依赖)· 三条推荐学习路线 · 全站一览表</span></span>
+    <span class="ob-go">进入 →</span>
+  </a>
+
+<section class="cat" id="rf">
+  <div class="cat-head">
+    <span class="icon">📡</span>
+    <h2>射频基础（RF）</h2>
+    <span class="cat-sub">从 dB 到链路预算，从传输线到 PLL —— 射频工程师的底层语言</span>
+    <span class="cat-count">7 页</span>
+  </div>
+  <div class="grid mini">
+    <a class="mini" href="RF/01-dB单位与链路预算.html"><span class="start">从这里开始</span><span class="no">RF · 01 / 07</span><h3>dB 单位与链路预算</h3><span class="desc">dB/dBm 的加减法则、FSPL 自由空间路径损耗、逐项预算一条线算到底</span><span class="sim-tag">换算器 · Friis 链路计算器</span></a>
+    <a class="mini" href="RF/02-传输线反射与VSWR.html"><span class="no">RF · 02 / 07</span><h3>传输线反射与 VSWR</h3><span class="desc">波长不再是"远方"：驻波、反射系数 Γ、回波损耗与 S 参数</span><span class="sim-tag">驻波演示（入射/反射/合成）</span></a>
+    <a class="mini" href="RF/03-史密斯圆图与匹配.html"><span class="no">RF · 03 / 07</span><h3>史密斯圆图与匹配</h3><span class="desc">把整个复阻抗平面揉进一个圆：等 r/等 x 圆族与 L 网络匹配</span><span class="sim-tag">交互圆图 · L 网络综合器</span></a>
+    <a class="mini" href="RF/04-滤波器频响.html"><span class="no">RF · 04 / 07</span><h3>滤波器频响</h3><span class="desc">巴特沃斯最平坦、切比雪夫更陡峭、贝塞尔相位线性 —— 怎么选</span><span class="sim-tag">频响 + 群时延对比</span></a>
+    <a class="mini" href="RF/05-噪声系数与灵敏度.html"><span class="no">RF · 05 / 07</span><h3>噪声系数与灵敏度</h3><span class="desc">-174 dBm/Hz 的热噪声底线、Friis 级联、LNA 为什么必须放最前</span><span class="sim-tag">级联 NF 计算器 · 灵敏度速查</span></a>
+    <a class="mini" href="RF/06-非线性与动态范围.html"><span class="no">RF · 06 / 07</span><h3>非线性与动态范围</h3><span class="desc">P1dB 压缩、IP3 交调、SFDR：接收机能"装下"多大的强弱信号差</span><span class="sim-tag">P1dB/IP3 仿真</span></a>
+    <a class="mini" href="RF/07-PLL与相位噪声.html"><span class="no">RF · 07 / 07</span><h3>PLL 与相位噪声</h3><span class="desc">锁相环如何"抄"参考时钟、dBc/Hz 相噪谱与积分抖动</span><span class="sim-tag">PLL 锁定瞬态 · 相噪谱</span></a>
+  </div>
+</section>
+
+<section class="cat" id="dsp">
+  <div class="cat-head">
+    <span class="icon">〰️</span>
+    <h2>信号处理基础（DSP）</h2>
+    <span class="cat-sub">全站公共底座：频谱、采样、FFT、噪声 —— 后三类的共同语言</span>
+    <span class="cat-count">7 页</span>
+  </div>
+  <div class="grid mini">
+    <a class="mini" href="DSP/01-傅里叶级数与频谱.html"><span class="start">从这里开始</span><span class="no">DSP · 01 / 07</span><h3>傅里叶级数与频谱</h3><span class="desc">任何信号都是正弦波的叠加：谐波、频谱视角与吉布斯现象</span><span class="sim-tag">级数合成演示</span></a>
+    <a class="mini" href="DSP/02-采样量化与混叠.html"><span class="no">DSP · 02 / 07</span><h3>采样量化与混叠</h3><span class="desc">fs &gt; 2fmax 从何而来、折叠假频、量化噪声与 SQNR=6.02N+1.76</span><span class="sim-tag">混叠演示 · 量化器实验</span></a>
+    <a class="mini" href="DSP/03-FFT频谱分析.html"><span class="no">DSP · 03 / 07</span><h3>FFT 频谱分析</h3><span class="desc">DFT 正交基、bin 与 RBW=fs/N、补零与谱平均的真正作用</span><span class="sim-tag">FFT 频谱仪</span></a>
+    <a class="mini" href="DSP/04-窗函数与泄漏.html"><span class="no">DSP · 04 / 07</span><h3>窗函数与泄漏</h3><span class="desc">非整周期截断的 sinc 泄漏、强弱双音 60dB 之差如何救回弱信号</span><span class="sim-tag">四窗对比 · 泄漏实战</span></a>
+    <a class="mini" href="DSP/05-复信号与IQ.html"><span class="no">DSP · 05 / 07</span><h3>复信号与 I/Q</h3><span class="desc">负频率=旋转方向、解析信号、复采样带宽为什么等于 fs</span><span class="sim-tag">旋转向量 · 实/复谱对比</span></a>
+    <a class="mini" href="DSP/06-随机信号与噪声.html"><span class="no">DSP · 06 / 07</span><h3>随机信号与噪声</h3><span class="desc">高斯/均匀分布、自相关、维纳-辛钦定理与 dBm/Hz 噪底</span><span class="sim-tag">噪声直方图 · 自相关↔PSD</span></a>
+    <a class="mini" href="DSP/07-卷积与LTI系统.html"><span class="no">DSP · 07 / 07</span><h3>卷积与 LTI 系统</h3><span class="desc">一个 h[n] 说清全部行为：滑动卷积、FIR 与频率响应</span><span class="sim-tag">滑动卷积动画 · 方波过低通</span></a>
+  </div>
+</section>
+
+<section class="cat" id="fmcw">
+  <div class="cat-head">
+    <span class="icon">🚗</span>
+    <h2>毫米波雷达（FMCW）</h2>
+    <span class="cat-sub">77GHz 车载雷达的完整链路：chirp → 2D-FFT → CFAR → 点云</span>
+    <span class="cat-count">7 页</span>
+  </div>
+  <div class="grid mini">
+    <a class="mini" href="FMCW/01-雷达原理与雷达方程.html"><span class="start">从这里开始</span><span class="no">FMCW · 01 / 07</span><h3>雷达原理与雷达方程</h3><span class="desc">脉冲/CW/FMCW 三兄弟、RCS 与 R⁴ 律、积累增益拉远探测距离</span><span class="sim-tag">雷达方程 · 检测距离曲线</span></a>
+    <a class="mini" href="FMCW/02-FMCW测距原理.html"><span class="no">FMCW · 02 / 07</span><h3>FMCW 测距原理</h3><span class="desc">chirp 斜率 S、拍频 fb=S·2R/c、ΔR=c/2B 只由带宽决定</span><span class="sim-tag">chirp 时频图 · FFT 测距</span></a>
+    <a class="mini" href="FMCW/03-多普勒测速与RD图.html"><span class="no">FMCW · 03 / 07</span><h3>多普勒测速与 RD 图</h3><span class="desc">fd=2v/λ、慢时间相位演化、RD 热力图与静态杂波抑制</span><span class="sim-tag">2D-FFT RD 图 + 去杂波</span></a>
+    <a class="mini" href="FMCW/04-chirp参数设计.html"><span class="no">FMCW · 04 / 07</span><h3>chirp 参数设计</h3><span class="desc">B→ΔR、Tc→vmax、N→Δv 的约束链，LRR/SRR 预设一键对比</span><span class="sim-tag">交互波形设计器</span></a>
+    <a class="mini" href="FMCW/05-CFAR恒虚警检测.html"><span class="no">FMCW · 05 / 07</span><h3>CFAR 恒虚警检测</h3><span class="desc">噪声在变门限就要跟着变：CA/GO/SO-CFAR 与多目标遮蔽</span><span class="sim-tag">CA-CFAR 检测演示</span></a>
+    <a class="mini" href="FMCW/06-阵列测角与MIMO.html"><span class="no">FMCW · 06 / 07</span><h3>阵列测角与 MIMO</h3><span class="desc">相位差测角、角度 FFT、d=λ/2 的由来与 MIMO 虚拟阵列</span><span class="sim-tag">角度 FFT · 虚拟阵列拼图</span></a>
+    <a class="mini" href="FMCW/07-雷达处理全流水线.html"><span class="no">FMCW · 07 / 07</span><h3>雷达处理全流水线</h3><span class="desc">从 ADC 采样到目标列表：mini 雷达端到端模拟，点云一目了然</span><span class="sim-tag">mini 雷达模拟器</span></a>
+  </div>
+</section>
+
+<section class="cat" id="sdr">
+  <div class="cat-head">
+    <span class="icon">📻</span>
+    <h2>SDR 软件无线电</h2>
+    <span class="cat-sub">硬件只做搬频和采样，其余全部交给软件 —— 从架构到误码率</span>
+    <span class="cat-count">7 页</span>
+  </div>
+  <div class="grid mini">
+    <a class="mini" href="SDR/01-SDR概念与架构.html"><span class="start">从这里开始</span><span class="no">SDR · 01 / 07</span><h3>SDR 概念与架构</h3><span class="desc">超外差 / 零中频 / 直接采样三种架构的取舍，RTL-SDR 到 USRP</span><span class="sim-tag">架构对比频谱实验</span></a>
+    <a class="mini" href="SDR/02-采样策略与带通采样.html"><span class="no">SDR · 02 / 07</span><h3>采样策略与带通采样</h3><span class="desc">混频即搬频、奈奎斯特区折叠、故意混叠省下高速 ADC</span><span class="sim-tag">混频搬移 · 带通采样</span></a>
+    <a class="mini" href="SDR/03-DDC与抽取.html"><span class="no">SDR · 03 / 07</span><h3>DDC 与抽取</h3><span class="desc">NCO 相位累加器、先滤波后抽取铁律、+10lgM 处理增益</span><span class="sim-tag">NCO 实验 · DDC 流水线</span></a>
+    <a class="mini" href="SDR/04-模拟调制AM与FM.html"><span class="no">SDR · 04 / 07</span><h3>模拟调制 AM 与 FM</h3><span class="desc">调制深度与过调制、卡森带宽 2(Δf+fm)、包络检波 vs 鉴频</span><span class="sim-tag">AM/FM 调制解调</span></a>
+    <a class="mini" href="SDR/05-数字调制与星座图.html"><span class="no">SDR · 05 / 07</span><h3>数字调制与星座图</h3><span class="desc">BPSK→64QAM 每符号装更多比特、EVM、升余弦成型与眼图</span><span class="sim-tag">星座图 · 眼图</span></a>
+    <a class="mini" href="SDR/06-信道损伤与误码率.html"><span class="no">SDR · 06 / 07</span><h3>信道损伤与误码率</h3><span class="desc">IQ 失衡→镜像、直流偏置、相噪旋转、多径衰落与 BER 曲线</span><span class="sim-tag">损伤实验室 · BER 曲线</span></a>
+    <a class="mini" href="SDR/07-频谱仪与瀑布图.html"><span class="no">SDR · 07 / 07</span><h3>频谱仪与瀑布图</h3><span class="desc">扫频式 vs FFT 式、RBW 与扫描时间的平方律、瀑布图看跳频</span><span class="sim-tag">实时瀑布图 · RBW 权衡</span></a>
+  </div>
+</section>
+
+</div>
+
+<div class="share-bar"><button class="share-btn" type="button" data-url="https://gitee.com/penneypl/rftools/blob/master/index.html">📱 分享本页</button></div>
+<footer>rftools · 4 大类 28 个专题工具页，均为独立单文件 HTML · 无任何外部依赖，双击即可离线使用</footer>
+
+<div class="qr-overlay" id="qrOverlay" hidden>
+  <div class="qr-card" role="dialog" aria-label="分享本页二维码">
+    <button class="qr-close" type="button" aria-label="关闭">✕</button>
+    <h3>📱 扫码分享本页</h3>
+    <canvas class="qr-canvas" id="qrCanvas" width="10" height="10"></canvas>
+    <div class="qr-url" id="qrUrl"></div>
+    <div class="qr-actions">
+      <button type="button" id="qrCopy">复制链接</button>
+      <a id="qrOpen" href="#" target="_blank" rel="noopener">在线打开</a>
+    </div>
   </div>
 </div>
-<footer>rftools · 四个工具均为独立单文件 HTML · 无任何外部依赖，双击即可离线使用</footer>
+
+<script>
+/* qrcode-generator 1.4.4 · (c) Kazuhiko Arase · MIT License · github.com/kazuhikoarase/qrcode-generator */
+/**
+ * Minified by jsDelivr using Terser v5.37.0.
+ * Original file: /npm/qrcode-generator@1.4.4/qrcode.js
+ *
+ * Do NOT use SRI with dynamically generated files! More information: https://www.jsdelivr.com/using-sri-with-dynamic-files
+ */
+var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],f={},c=function(t,r){o=function(t){for(var r=new Array(t),e=0;e<t;e+=1){r[e]=new Array(t);for(var n=0;n<t;n+=1)r[e][n]=null}return r}(i=4*e+17),l(0,0),l(i-7,0),l(0,i-7),s(),h(),d(t,r),e>=7&&v(t),null==a&&(a=p(e,n,u)),w(a,r)},l=function(t,r){for(var e=-1;e<=7;e+=1)if(!(t+e<=-1||i<=t+e))for(var n=-1;n<=7;n+=1)r+n<=-1||i<=r+n||(o[t+e][r+n]=0<=e&&e<=6&&(0==n||6==n)||0<=n&&n<=6&&(0==e||6==e)||2<=e&&e<=4&&2<=n&&n<=4)},h=function(){for(var t=8;t<i-8;t+=1)null==o[t][6]&&(o[t][6]=t%2==0);for(var r=8;r<i-8;r+=1)null==o[6][r]&&(o[6][r]=r%2==0)},s=function(){for(var t=B.getPatternPosition(e),r=0;r<t.length;r+=1)for(var n=0;n<t.length;n+=1){var i=t[r],a=t[n];if(null==o[i][a])for(var u=-2;u<=2;u+=1)for(var f=-2;f<=2;f+=1)o[i+u][a+f]=-2==u||2==u||-2==f||2==f||0==u&&0==f}},v=function(t){for(var r=B.getBCHTypeNumber(e),n=0;n<18;n+=1){var a=!t&&1==(r>>n&1);o[Math.floor(n/3)][n%3+i-8-3]=a}for(n=0;n<18;n+=1){a=!t&&1==(r>>n&1);o[n%3+i-8-3][Math.floor(n/3)]=a}},d=function(t,r){for(var e=n<<3|r,a=B.getBCHTypeInfo(e),u=0;u<15;u+=1){var f=!t&&1==(a>>u&1);u<6?o[u][8]=f:u<8?o[u+1][8]=f:o[i-15+u][8]=f}for(u=0;u<15;u+=1){f=!t&&1==(a>>u&1);u<8?o[8][i-u-1]=f:u<9?o[8][15-u-1+1]=f:o[8][15-u-1]=f}o[i-8][8]=!t},w=function(t,r){for(var e=-1,n=i-1,a=7,u=0,f=B.getMaskFunction(r),c=i-1;c>0;c-=2)for(6==c&&(c-=1);;){for(var g=0;g<2;g+=1)if(null==o[n][c-g]){var l=!1;u<t.length&&(l=1==(t[u]>>>a&1)),f(n,c-g)&&(l=!l),o[n][c-g]=l,-1==(a-=1)&&(u+=1,a=7)}if((n+=e)<0||i<=n){n-=e,e=-e;break}}},p=function(t,r,e){for(var n=A.getRSBlocks(t,r),o=b(),i=0;i<e.length;i+=1){var a=e[i];o.put(a.getMode(),4),o.put(a.getLength(),B.getLengthInBits(a.getMode(),t)),a.write(o)}var u=0;for(i=0;i<n.length;i+=1)u+=n[i].dataCount;if(o.getLengthInBits()>8*u)throw"code length overflow. ("+o.getLengthInBits()+">"+8*u+")";for(o.getLengthInBits()+4<=8*u&&o.put(0,4);o.getLengthInBits()%8!=0;)o.putBit(!1);for(;!(o.getLengthInBits()>=8*u||(o.put(236,8),o.getLengthInBits()>=8*u));)o.put(17,8);return function(t,r){for(var e=0,n=0,o=0,i=new Array(r.length),a=new Array(r.length),u=0;u<r.length;u+=1){var f=r[u].dataCount,c=r[u].totalCount-f;n=Math.max(n,f),o=Math.max(o,c),i[u]=new Array(f);for(var g=0;g<i[u].length;g+=1)i[u][g]=255&t.getBuffer()[g+e];e+=f;var l=B.getErrorCorrectPolynomial(c),h=k(i[u],l.getLength()-1).mod(l);for(a[u]=new Array(l.getLength()-1),g=0;g<a[u].length;g+=1){var s=g+h.getLength()-a[u].length;a[u][g]=s>=0?h.getAt(s):0}}var v=0;for(g=0;g<r.length;g+=1)v+=r[g].totalCount;var d=new Array(v),w=0;for(g=0;g<n;g+=1)for(u=0;u<r.length;u+=1)g<i[u].length&&(d[w]=i[u][g],w+=1);for(g=0;g<o;g+=1)for(u=0;u<r.length;u+=1)g<a[u].length&&(d[w]=a[u][g],w+=1);return d}(o,n)};f.addData=function(t,r){var e=null;switch(r=r||"Byte"){case"Numeric":e=M(t);break;case"Alphanumeric":e=x(t);break;case"Byte":e=m(t);break;case"Kanji":e=L(t);break;default:throw"mode:"+r}u.push(e),a=null},f.isDark=function(t,r){if(t<0||i<=t||r<0||i<=r)throw t+","+r;return o[t][r]},f.getModuleCount=function(){return i},f.make=function(){if(e<1){for(var t=1;t<40;t++){for(var r=A.getRSBlocks(t,n),o=b(),i=0;i<u.length;i++){var a=u[i];o.put(a.getMode(),4),o.put(a.getLength(),B.getLengthInBits(a.getMode(),t)),a.write(o)}var g=0;for(i=0;i<r.length;i++)g+=r[i].dataCount;if(o.getLengthInBits()<=8*g)break}e=t}c(!1,function(){for(var t=0,r=0,e=0;e<8;e+=1){c(!0,e);var n=B.getLostPoint(f);(0==e||t>n)&&(t=n,r=e)}return r}())},f.createTableTag=function(t,r){t=t||2;var e="";e+='<table style="',e+=" border-width: 0px; border-style: none;",e+=" border-collapse: collapse;",e+=" padding: 0px; margin: "+(r=void 0===r?4*t:r)+"px;",e+='">',e+="<tbody>";for(var n=0;n<f.getModuleCount();n+=1){e+="<tr>";for(var o=0;o<f.getModuleCount();o+=1)e+='<td style="',e+=" border-width: 0px; border-style: none;",e+=" border-collapse: collapse;",e+=" padding: 0px; margin: 0px;",e+=" width: "+t+"px;",e+=" height: "+t+"px;",e+=" background-color: ",e+=f.isDark(n,o)?"#000000":"#ffffff",e+=";",e+='"/>';e+="</tr>"}return e+="</tbody>",e+="</table>"},f.createSvgTag=function(t,r,e,n){var o={};"object"==typeof arguments[0]&&(t=(o=arguments[0]).cellSize,r=o.margin,e=o.alt,n=o.title),t=t||2,r=void 0===r?4*t:r,(e="string"==typeof e?{text:e}:e||{}).text=e.text||null,e.id=e.text?e.id||"qrcode-description":null,(n="string"==typeof n?{text:n}:n||{}).text=n.text||null,n.id=n.text?n.id||"qrcode-title":null;var i,a,u,c,g=f.getModuleCount()*t+2*r,l="";for(c="l"+t+",0 0,"+t+" -"+t+",0 0,-"+t+"z ",l+='<svg version="1.1" xmlns="http://www.w3.org/2000/svg"',l+=o.scalable?"":' width="'+g+'px" height="'+g+'px"',l+=' viewBox="0 0 '+g+" "+g+'" ',l+=' preserveAspectRatio="xMinYMin meet"',l+=n.text||e.text?' role="img" aria-labelledby="'+y([n.id,e.id].join(" ").trim())+'"':"",l+=">",l+=n.text?'<title id="'+y(n.id)+'">'+y(n.text)+"</title>":"",l+=e.text?'<description id="'+y(e.id)+'">'+y(e.text)+"</description>":"",l+='<rect width="100%" height="100%" fill="white" cx="0" cy="0"/>',l+='<path d="',a=0;a<f.getModuleCount();a+=1)for(u=a*t+r,i=0;i<f.getModuleCount();i+=1)f.isDark(a,i)&&(l+="M"+(i*t+r)+","+u+c);return l+='" stroke="transparent" fill="black"/>',l+="</svg>"},f.createDataURL=function(t,r){t=t||2,r=void 0===r?4*t:r;var e=f.getModuleCount()*t+2*r,n=r,o=e-r;return I(e,e,(function(r,e){if(n<=r&&r<o&&n<=e&&e<o){var i=Math.floor((r-n)/t),a=Math.floor((e-n)/t);return f.isDark(a,i)?0:1}return 1}))},f.createImgTag=function(t,r,e){t=t||2,r=void 0===r?4*t:r;var n=f.getModuleCount()*t+2*r,o="";return o+="<img",o+=' src="',o+=f.createDataURL(t,r),o+='"',o+=' width="',o+=n,o+='"',o+=' height="',o+=n,o+='"',e&&(o+=' alt="',o+=y(e),o+='"'),o+="/>"};var y=function(t){for(var r="",e=0;e<t.length;e+=1){var n=t.charAt(e);switch(n){case"<":r+="&lt;";break;case">":r+="&gt;";break;case"&":r+="&amp;";break;case'"':r+="&quot;";break;default:r+=n}}return r};return f.createASCII=function(t,r){if((t=t||1)<2)return function(t){t=void 0===t?2:t;var r,e,n,o,i,a=1*f.getModuleCount()+2*t,u=t,c=a-t,g={"██":"█","█ ":"▀"," █":"▄","  ":" "},l={"██":"▀","█ ":"▀"," █":" ","  ":" "},h="";for(r=0;r<a;r+=2){for(n=Math.floor((r-u)/1),o=Math.floor((r+1-u)/1),e=0;e<a;e+=1)i="█",u<=e&&e<c&&u<=r&&r<c&&f.isDark(n,Math.floor((e-u)/1))&&(i=" "),u<=e&&e<c&&u<=r+1&&r+1<c&&f.isDark(o,Math.floor((e-u)/1))?i+=" ":i+="█",h+=t<1&&r+1>=c?l[i]:g[i];h+="\n"}return a%2&&t>0?h.substring(0,h.length-a-1)+Array(a+1).join("▀"):h.substring(0,h.length-1)}(r);t-=1,r=void 0===r?2*t:r;var e,n,o,i,a=f.getModuleCount()*t+2*r,u=r,c=a-r,g=Array(t+1).join("██"),l=Array(t+1).join("  "),h="",s="";for(e=0;e<a;e+=1){for(o=Math.floor((e-u)/t),s="",n=0;n<a;n+=1)i=1,u<=n&&n<c&&u<=e&&e<c&&f.isDark(o,Math.floor((n-u)/t))&&(i=0),s+=i?g:l;for(o=0;o<t;o+=1)h+=s+"\n"}return h.substring(0,h.length-1)},f.renderTo2dContext=function(t,r){r=r||2;for(var e=f.getModuleCount(),n=0;n<e;n++)for(var o=0;o<e;o++)t.fillStyle=f.isDark(n,o)?"black":"white",t.fillRect(n*r,o*r,r,r)},f};t.stringToBytes=(t.stringToBytesFuncs={default:function(t){for(var r=[],e=0;e<t.length;e+=1){var n=t.charCodeAt(e);r.push(255&n)}return r}}).default,t.createStringToBytes=function(t,r){var e=function(){for(var e=S(t),n=function(){var t=e.read();if(-1==t)throw"eof";return t},o=0,i={};;){var a=e.read();if(-1==a)break;var u=n(),f=n()<<8|n();i[String.fromCharCode(a<<8|u)]=f,o+=1}if(o!=r)throw o+" != "+r;return i}(),n="?".charCodeAt(0);return function(t){for(var r=[],o=0;o<t.length;o+=1){var i=t.charCodeAt(o);if(i<128)r.push(i);else{var a=e[t.charAt(o)];"number"==typeof a?(255&a)==a?r.push(a):(r.push(a>>>8),r.push(255&a)):r.push(n)}}return r}};var r,e,n,o,i,a=1,u=2,f=4,c=8,g={L:1,M:0,Q:3,H:2},l=0,h=1,s=2,v=3,d=4,w=5,p=6,y=7,B=(r=[[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50],[6,30,54],[6,32,58],[6,34,62],[6,26,46,66],[6,26,48,70],[6,26,50,74],[6,30,54,78],[6,30,56,82],[6,30,58,86],[6,34,62,90],[6,28,50,72,94],[6,26,50,74,98],[6,30,54,78,102],[6,28,54,80,106],[6,32,58,84,110],[6,30,58,86,114],[6,34,62,90,118],[6,26,50,74,98,122],[6,30,54,78,102,126],[6,26,52,78,104,130],[6,30,56,82,108,134],[6,34,60,86,112,138],[6,30,58,86,114,142],[6,34,62,90,118,146],[6,30,54,78,102,126,150],[6,24,50,76,102,128,154],[6,28,54,80,106,132,158],[6,32,58,84,110,136,162],[6,26,54,82,110,138,166],[6,30,58,86,114,142,170]],e=1335,n=7973,i=function(t){for(var r=0;0!=t;)r+=1,t>>>=1;return r},(o={}).getBCHTypeInfo=function(t){for(var r=t<<10;i(r)-i(e)>=0;)r^=e<<i(r)-i(e);return 21522^(t<<10|r)},o.getBCHTypeNumber=function(t){for(var r=t<<12;i(r)-i(n)>=0;)r^=n<<i(r)-i(n);return t<<12|r},o.getPatternPosition=function(t){return r[t-1]},o.getMaskFunction=function(t){switch(t){case l:return function(t,r){return(t+r)%2==0};case h:return function(t,r){return t%2==0};case s:return function(t,r){return r%3==0};case v:return function(t,r){return(t+r)%3==0};case d:return function(t,r){return(Math.floor(t/2)+Math.floor(r/3))%2==0};case w:return function(t,r){return t*r%2+t*r%3==0};case p:return function(t,r){return(t*r%2+t*r%3)%2==0};case y:return function(t,r){return(t*r%3+(t+r)%2)%2==0};default:throw"bad maskPattern:"+t}},o.getErrorCorrectPolynomial=function(t){for(var r=k([1],0),e=0;e<t;e+=1)r=r.multiply(k([1,C.gexp(e)],0));return r},o.getLengthInBits=function(t,r){if(1<=r&&r<10)switch(t){case a:return 10;case u:return 9;case f:case c:return 8;default:throw"mode:"+t}else if(r<27)switch(t){case a:return 12;case u:return 11;case f:return 16;case c:return 10;default:throw"mode:"+t}else{if(!(r<41))throw"type:"+r;switch(t){case a:return 14;case u:return 13;case f:return 16;case c:return 12;default:throw"mode:"+t}}},o.getLostPoint=function(t){for(var r=t.getModuleCount(),e=0,n=0;n<r;n+=1)for(var o=0;o<r;o+=1){for(var i=0,a=t.isDark(n,o),u=-1;u<=1;u+=1)if(!(n+u<0||r<=n+u))for(var f=-1;f<=1;f+=1)o+f<0||r<=o+f||0==u&&0==f||a==t.isDark(n+u,o+f)&&(i+=1);i>5&&(e+=3+i-5)}for(n=0;n<r-1;n+=1)for(o=0;o<r-1;o+=1){var c=0;t.isDark(n,o)&&(c+=1),t.isDark(n+1,o)&&(c+=1),t.isDark(n,o+1)&&(c+=1),t.isDark(n+1,o+1)&&(c+=1),0!=c&&4!=c||(e+=3)}for(n=0;n<r;n+=1)for(o=0;o<r-6;o+=1)t.isDark(n,o)&&!t.isDark(n,o+1)&&t.isDark(n,o+2)&&t.isDark(n,o+3)&&t.isDark(n,o+4)&&!t.isDark(n,o+5)&&t.isDark(n,o+6)&&(e+=40);for(o=0;o<r;o+=1)for(n=0;n<r-6;n+=1)t.isDark(n,o)&&!t.isDark(n+1,o)&&t.isDark(n+2,o)&&t.isDark(n+3,o)&&t.isDark(n+4,o)&&!t.isDark(n+5,o)&&t.isDark(n+6,o)&&(e+=40);var g=0;for(o=0;o<r;o+=1)for(n=0;n<r;n+=1)t.isDark(n,o)&&(g+=1);return e+=Math.abs(100*g/r/r-50)/5*10},o),C=function(){for(var t=new Array(256),r=new Array(256),e=0;e<8;e+=1)t[e]=1<<e;for(e=8;e<256;e+=1)t[e]=t[e-4]^t[e-5]^t[e-6]^t[e-8];for(e=0;e<255;e+=1)r[t[e]]=e;var n={glog:function(t){if(t<1)throw"glog("+t+")";return r[t]},gexp:function(r){for(;r<0;)r+=255;for(;r>=256;)r-=255;return t[r]}};return n}();function k(t,r){if(void 0===t.length)throw t.length+"/"+r;var e=function(){for(var e=0;e<t.length&&0==t[e];)e+=1;for(var n=new Array(t.length-e+r),o=0;o<t.length-e;o+=1)n[o]=t[o+e];return n}(),n={getAt:function(t){return e[t]},getLength:function(){return e.length},multiply:function(t){for(var r=new Array(n.getLength()+t.getLength()-1),e=0;e<n.getLength();e+=1)for(var o=0;o<t.getLength();o+=1)r[e+o]^=C.gexp(C.glog(n.getAt(e))+C.glog(t.getAt(o)));return k(r,0)},mod:function(t){if(n.getLength()-t.getLength()<0)return n;for(var r=C.glog(n.getAt(0))-C.glog(t.getAt(0)),e=new Array(n.getLength()),o=0;o<n.getLength();o+=1)e[o]=n.getAt(o);for(o=0;o<t.getLength();o+=1)e[o]^=C.gexp(C.glog(t.getAt(o))+r);return k(e,0).mod(t)}};return n}var A=function(){var t=[[1,26,19],[1,26,16],[1,26,13],[1,26,9],[1,44,34],[1,44,28],[1,44,22],[1,44,16],[1,70,55],[1,70,44],[2,35,17],[2,35,13],[1,100,80],[2,50,32],[2,50,24],[4,25,9],[1,134,108],[2,67,43],[2,33,15,2,34,16],[2,33,11,2,34,12],[2,86,68],[4,43,27],[4,43,19],[4,43,15],[2,98,78],[4,49,31],[2,32,14,4,33,15],[4,39,13,1,40,14],[2,121,97],[2,60,38,2,61,39],[4,40,18,2,41,19],[4,40,14,2,41,15],[2,146,116],[3,58,36,2,59,37],[4,36,16,4,37,17],[4,36,12,4,37,13],[2,86,68,2,87,69],[4,69,43,1,70,44],[6,43,19,2,44,20],[6,43,15,2,44,16],[4,101,81],[1,80,50,4,81,51],[4,50,22,4,51,23],[3,36,12,8,37,13],[2,116,92,2,117,93],[6,58,36,2,59,37],[4,46,20,6,47,21],[7,42,14,4,43,15],[4,133,107],[8,59,37,1,60,38],[8,44,20,4,45,21],[12,33,11,4,34,12],[3,145,115,1,146,116],[4,64,40,5,65,41],[11,36,16,5,37,17],[11,36,12,5,37,13],[5,109,87,1,110,88],[5,65,41,5,66,42],[5,54,24,7,55,25],[11,36,12,7,37,13],[5,122,98,1,123,99],[7,73,45,3,74,46],[15,43,19,2,44,20],[3,45,15,13,46,16],[1,135,107,5,136,108],[10,74,46,1,75,47],[1,50,22,15,51,23],[2,42,14,17,43,15],[5,150,120,1,151,121],[9,69,43,4,70,44],[17,50,22,1,51,23],[2,42,14,19,43,15],[3,141,113,4,142,114],[3,70,44,11,71,45],[17,47,21,4,48,22],[9,39,13,16,40,14],[3,135,107,5,136,108],[3,67,41,13,68,42],[15,54,24,5,55,25],[15,43,15,10,44,16],[4,144,116,4,145,117],[17,68,42],[17,50,22,6,51,23],[19,46,16,6,47,17],[2,139,111,7,140,112],[17,74,46],[7,54,24,16,55,25],[34,37,13],[4,151,121,5,152,122],[4,75,47,14,76,48],[11,54,24,14,55,25],[16,45,15,14,46,16],[6,147,117,4,148,118],[6,73,45,14,74,46],[11,54,24,16,55,25],[30,46,16,2,47,17],[8,132,106,4,133,107],[8,75,47,13,76,48],[7,54,24,22,55,25],[22,45,15,13,46,16],[10,142,114,2,143,115],[19,74,46,4,75,47],[28,50,22,6,51,23],[33,46,16,4,47,17],[8,152,122,4,153,123],[22,73,45,3,74,46],[8,53,23,26,54,24],[12,45,15,28,46,16],[3,147,117,10,148,118],[3,73,45,23,74,46],[4,54,24,31,55,25],[11,45,15,31,46,16],[7,146,116,7,147,117],[21,73,45,7,74,46],[1,53,23,37,54,24],[19,45,15,26,46,16],[5,145,115,10,146,116],[19,75,47,10,76,48],[15,54,24,25,55,25],[23,45,15,25,46,16],[13,145,115,3,146,116],[2,74,46,29,75,47],[42,54,24,1,55,25],[23,45,15,28,46,16],[17,145,115],[10,74,46,23,75,47],[10,54,24,35,55,25],[19,45,15,35,46,16],[17,145,115,1,146,116],[14,74,46,21,75,47],[29,54,24,19,55,25],[11,45,15,46,46,16],[13,145,115,6,146,116],[14,74,46,23,75,47],[44,54,24,7,55,25],[59,46,16,1,47,17],[12,151,121,7,152,122],[12,75,47,26,76,48],[39,54,24,14,55,25],[22,45,15,41,46,16],[6,151,121,14,152,122],[6,75,47,34,76,48],[46,54,24,10,55,25],[2,45,15,64,46,16],[17,152,122,4,153,123],[29,74,46,14,75,47],[49,54,24,10,55,25],[24,45,15,46,46,16],[4,152,122,18,153,123],[13,74,46,32,75,47],[48,54,24,14,55,25],[42,45,15,32,46,16],[20,147,117,4,148,118],[40,75,47,7,76,48],[43,54,24,22,55,25],[10,45,15,67,46,16],[19,148,118,6,149,119],[18,75,47,31,76,48],[34,54,24,34,55,25],[20,45,15,61,46,16]],r=function(t,r){var e={};return e.totalCount=t,e.dataCount=r,e},e={};return e.getRSBlocks=function(e,n){var o=function(r,e){switch(e){case g.L:return t[4*(r-1)+0];case g.M:return t[4*(r-1)+1];case g.Q:return t[4*(r-1)+2];case g.H:return t[4*(r-1)+3];default:return}}(e,n);if(void 0===o)throw"bad rs block @ typeNumber:"+e+"/errorCorrectionLevel:"+n;for(var i=o.length/3,a=[],u=0;u<i;u+=1)for(var f=o[3*u+0],c=o[3*u+1],l=o[3*u+2],h=0;h<f;h+=1)a.push(r(c,l));return a},e}(),b=function(){var t=[],r=0,e={getBuffer:function(){return t},getAt:function(r){var e=Math.floor(r/8);return 1==(t[e]>>>7-r%8&1)},put:function(t,r){for(var n=0;n<r;n+=1)e.putBit(1==(t>>>r-n-1&1))},getLengthInBits:function(){return r},putBit:function(e){var n=Math.floor(r/8);t.length<=n&&t.push(0),e&&(t[n]|=128>>>r%8),r+=1}};return e},M=function(t){var r=a,e=t,n={getMode:function(){return r},getLength:function(t){return e.length},write:function(t){for(var r=e,n=0;n+2<r.length;)t.put(o(r.substring(n,n+3)),10),n+=3;n<r.length&&(r.length-n==1?t.put(o(r.substring(n,n+1)),4):r.length-n==2&&t.put(o(r.substring(n,n+2)),7))}},o=function(t){for(var r=0,e=0;e<t.length;e+=1)r=10*r+i(t.charAt(e));return r},i=function(t){if("0"<=t&&t<="9")return t.charCodeAt(0)-"0".charCodeAt(0);throw"illegal char :"+t};return n},x=function(t){var r=u,e=t,n={getMode:function(){return r},getLength:function(t){return e.length},write:function(t){for(var r=e,n=0;n+1<r.length;)t.put(45*o(r.charAt(n))+o(r.charAt(n+1)),11),n+=2;n<r.length&&t.put(o(r.charAt(n)),6)}},o=function(t){if("0"<=t&&t<="9")return t.charCodeAt(0)-"0".charCodeAt(0);if("A"<=t&&t<="Z")return t.charCodeAt(0)-"A".charCodeAt(0)+10;switch(t){case" ":return 36;case"$":return 37;case"%":return 38;case"*":return 39;case"+":return 40;case"-":return 41;case".":return 42;case"/":return 43;case":":return 44;default:throw"illegal char :"+t}};return n},m=function(r){var e=f,n=t.stringToBytes(r),o={getMode:function(){return e},getLength:function(t){return n.length},write:function(t){for(var r=0;r<n.length;r+=1)t.put(n[r],8)}};return o},L=function(r){var e=c,n=t.stringToBytesFuncs.SJIS;if(!n)throw"sjis not supported.";!function(){var t=n("友");if(2!=t.length||38726!=(t[0]<<8|t[1]))throw"sjis not supported."}();var o=n(r),i={getMode:function(){return e},getLength:function(t){return~~(o.length/2)},write:function(t){for(var r=o,e=0;e+1<r.length;){var n=(255&r[e])<<8|255&r[e+1];if(33088<=n&&n<=40956)n-=33088;else{if(!(57408<=n&&n<=60351))throw"illegal char at "+(e+1)+"/"+n;n-=49472}n=192*(n>>>8&255)+(255&n),t.put(n,13),e+=2}if(e<r.length)throw"illegal char at "+(e+1)}};return i},D=function(){var t=[],r={writeByte:function(r){t.push(255&r)},writeShort:function(t){r.writeByte(t),r.writeByte(t>>>8)},writeBytes:function(t,e,n){e=e||0,n=n||t.length;for(var o=0;o<n;o+=1)r.writeByte(t[o+e])},writeString:function(t){for(var e=0;e<t.length;e+=1)r.writeByte(t.charCodeAt(e))},toByteArray:function(){return t},toString:function(){var r="";r+="[";for(var e=0;e<t.length;e+=1)e>0&&(r+=","),r+=t[e];return r+="]"}};return r},S=function(t){var r=t,e=0,n=0,o=0,i={read:function(){for(;o<8;){if(e>=r.length){if(0==o)return-1;throw"unexpected end of file./"+o}var t=r.charAt(e);if(e+=1,"="==t)return o=0,-1;t.match(/^\s$/)||(n=n<<6|a(t.charCodeAt(0)),o+=6)}var i=n>>>o-8&255;return o-=8,i}},a=function(t){if(65<=t&&t<=90)return t-65;if(97<=t&&t<=122)return t-97+26;if(48<=t&&t<=57)return t-48+52;if(43==t)return 62;if(47==t)return 63;throw"c:"+t};return i},I=function(t,r,e){for(var n=function(t,r){var e=t,n=r,o=new Array(t*r),i={setPixel:function(t,r,n){o[r*e+t]=n},write:function(t){t.writeString("GIF87a"),t.writeShort(e),t.writeShort(n),t.writeByte(128),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(255),t.writeByte(255),t.writeByte(255),t.writeString(","),t.writeShort(0),t.writeShort(0),t.writeShort(e),t.writeShort(n),t.writeByte(0);var r=a(2);t.writeByte(2);for(var o=0;r.length-o>255;)t.writeByte(255),t.writeBytes(r,o,255),o+=255;t.writeByte(r.length-o),t.writeBytes(r,o,r.length-o),t.writeByte(0),t.writeString(";")}},a=function(t){for(var r=1<<t,e=1+(1<<t),n=t+1,i=u(),a=0;a<r;a+=1)i.add(String.fromCharCode(a));i.add(String.fromCharCode(r)),i.add(String.fromCharCode(e));var f,c,g,l=D(),h=(f=l,c=0,g=0,{write:function(t,r){if(t>>>r!=0)throw"length over";for(;c+r>=8;)f.writeByte(255&(t<<c|g)),r-=8-c,t>>>=8-c,g=0,c=0;g|=t<<c,c+=r},flush:function(){c>0&&f.writeByte(g)}});h.write(r,n);var s=0,v=String.fromCharCode(o[s]);for(s+=1;s<o.length;){var d=String.fromCharCode(o[s]);s+=1,i.contains(v+d)?v+=d:(h.write(i.indexOf(v),n),i.size()<4095&&(i.size()==1<<n&&(n+=1),i.add(v+d)),v=d)}return h.write(i.indexOf(v),n),h.write(e,n),h.flush(),l.toByteArray()},u=function(){var t={},r=0,e={add:function(n){if(e.contains(n))throw"dup key:"+n;t[n]=r,r+=1},size:function(){return r},indexOf:function(r){return t[r]},contains:function(r){return void 0!==t[r]}};return e};return i}(t,r),o=0;o<r;o+=1)for(var i=0;i<t;i+=1)n.setPixel(i,o,e(i,o));var a=D();n.write(a);for(var u=function(){var t=0,r=0,e=0,n="",o={},i=function(t){n+=String.fromCharCode(a(63&t))},a=function(t){if(t<0);else{if(t<26)return 65+t;if(t<52)return t-26+97;if(t<62)return t-52+48;if(62==t)return 43;if(63==t)return 47}throw"n:"+t};return o.writeByte=function(n){for(t=t<<8|255&n,r+=8,e+=1;r>=6;)i(t>>>r-6),r-=6},o.flush=function(){if(r>0&&(i(t<<6-r),t=0,r=0),e%3!=0)for(var o=3-e%3,a=0;a<o;a+=1)n+="="},o.toString=function(){return n},o}(),f=a.toByteArray(),c=0;c<f.length;c+=1)u.writeByte(f[c]);return u.flush(),"data:image/gif;base64,"+u};return t}();qrcode.stringToBytesFuncs["UTF-8"]=function(t){return function(t){for(var r=[],e=0;e<t.length;e++){var n=t.charCodeAt(e);n<128?r.push(n):n<2048?r.push(192|n>>6,128|63&n):n<55296||n>=57344?r.push(224|n>>12,128|n>>6&63,128|63&n):(e++,n=65536+((1023&n)<<10|1023&t.charCodeAt(e)),r.push(240|n>>18,128|n>>12&63,128|n>>6&63,128|63&n))}return r}(t)},function(t){"function"==typeof define&&define.amd?define([],t):"object"==typeof exports&&(module.exports=t())}((function(){return qrcode}));
+//# sourceMappingURL=/sm/26b4b0d0b1e283d6b3ec9857ac597d7a60c76ac17be1ef4c965f03086de426bb.map
+</script>
+<script>
+(function(){
+"use strict";
+var overlay=document.getElementById("qrOverlay");
+var btn=document.querySelector(".share-bar .share-btn");
+if(!overlay||!btn)return;
+var url=btn.getAttribute("data-url")||location.href;
+document.getElementById("qrUrl").textContent=url;
+document.getElementById("qrOpen").href=url;
+function drawQR(){
+  var qr=qrcode(0,"M");qr.addData(url);qr.make();
+  var n=qr.getModuleCount(),Q=4,mod=3,W=(n+2*Q)*mod,dpr=window.devicePixelRatio||1;
+  var cv=document.getElementById("qrCanvas");
+  cv.style.width=W+"px";cv.style.height=W+"px";
+  cv.width=Math.round(W*dpr);cv.height=Math.round(W*dpr);
+  var ctx=cv.getContext("2d");
+  ctx.fillStyle="#fff";ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.fillStyle="#0d1117";
+  for(var r=0;r<n;r++)for(var c=0;c<n;c++)if(qr.isDark(r,c))
+    ctx.fillRect((Q+c)*mod*dpr,(Q+r)*mod*dpr,mod*dpr,mod*dpr);
+}
+btn.addEventListener("click",function(){overlay.hidden=false;drawQR();});
+function close(){overlay.hidden=true;}
+overlay.addEventListener("click",function(e){if(e.target===overlay)close();});
+overlay.querySelector(".qr-close").addEventListener("click",close);
+document.addEventListener("keydown",function(e){if(e.key==="Escape"&&!overlay.hidden)close();});
+var copyBtn=document.getElementById("qrCopy");
+copyBtn.addEventListener("click",function(){
+  function done(){copyBtn.textContent="已复制 ✓";setTimeout(function(){copyBtn.textContent="复制链接";},1500);}
+  function fallback(){
+    var ta=document.createElement("textarea");ta.value=url;
+    ta.style.position="fixed";ta.style.opacity="0";
+    document.body.appendChild(ta);ta.select();
+    try{document.execCommand("copy");}catch(e){}
+    document.body.removeChild(ta);done();
+  }
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(url).then(done,fallback);
+  }else{fallback();}
+});
+})();
+</script>
 </body>
 </html>
